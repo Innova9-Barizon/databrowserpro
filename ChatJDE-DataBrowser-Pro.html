@@ -1,0 +1,2404 @@
+<!--
+ ***************************************************************************
+ *   Project: JDE DataBrowser Pro
+ *
+ *   Distributed by: Innova9 / ChatJDE (https://chatjde.ai)
+ *
+ *   About Us:
+ *      Innova9 is your innovation partner, specializing in transforming
+ *      enterprise systems with cutting-edge Generative AI, automation,
+ *      and seamless integrations. We empower organizations to unlock the
+ *      full potential of platforms like JD Edwards with AI-driven agents,
+ *      secure connectivity, and intuitive user experiences.
+ *
+ *   Services We Offer:
+ *      - AI Solutions for JD Edwards (ChatJDE, Supply Chain Manager AI, etc.)
+ *      - AI Dashboard & Analytics
+ *      - Integration Consulting & Orchestrator Training
+ *      - Supplier Onboarding & Self-Service Portals
+ *      - Secure API Tunnels & Custom AI Development
+ *
+ *   Want to collaborate or need a custom solution?
+ *      Contact us: contact@innova9.io
+ *      Learn more: https://chatjde.ai
+ *      LinkedIn:   https://linkedin.com/in/barizon
+ *
+ *   License:
+ *      This code is released into the public domain and may be freely used,
+ *      modified, and distributed for any purpose, commercial or non-commercial.
+ *      Attribution is appreciated but not required.
+ *
+ *   Instructions:
+ *      1. Save this HTML file and open it in any modern browser — no install
+ *         needed. It runs entirely client-side.
+ *      2. Click the "⚙ Connection" button in the top-left to open the
+ *         connection panel and fill in:
+ *            - AIS Server URL  e.g. http://192.168.1.10:6083
+ *            - Username        your JDE username
+ *            - Password        your JDE password
+ *            - Environment     e.g. JDV920, JPD920
+ *            - Role            defaults to *ALL
+ *      3. Click "Connect". A green badge confirms a successful connection.
+ *      4. Type any JD Edwards table or business view name (e.g. F4101, F0101)
+ *         in the search box, choose the row count, and click "▶ Browse".
+ *      5. Use Row Filters to search the entire table server-side, or use
+ *         Field Search and column tools to explore the loaded data.
+ *      6. Your AIS server must have CORS enabled for browser access.
+ *         Credentials are never stored beyond your current session.
+ *      7. I provide no free support on it. The code works as is.
+ *      8. Use at your own discretion. Good luck, have fun, and feel free
+ *         to fork and build on top of it!
+ *
+ *   Let's build the future, together!
+ ***************************************************************************
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JDE DataBrowser Pro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+
+    :root {
+      --bg0: #0d1117; --bg1: #161b22; --bg2: #21262d; --bg3: #2d333b;
+      --border: #30363d; --border2: #444c56;
+      --txt0: #e6edf3; --txt1: #8b949e; --txt2: #6e7681;
+      --blue: #58a6ff; --blue2: #1f6feb;
+      --green: #3fb950; --orange: #d29922; --red: #f85149; --purple: #bc8cff;
+      --teal: #39c5cf;
+      --row-hover: rgba(255,255,255,.03);
+      --tbl-pad-v: 4px; --tbl-pad-h: 9px; --tbl-fs: 12px; --th-fs: 11px;
+    }
+
+    /* ── Light mode ── */
+    body.light {
+      --bg0: #f6f8fa; --bg1: #ffffff; --bg2: #f0f2f5; --bg3: #e6eaef;
+      --border: #d0d7de; --border2: #b0bac5;
+      --txt0: #1f2328; --txt1: #57606a; --txt2: #8c959f;
+      --blue: #0969da; --blue2: #0550ae;
+      --green: #1a7f37; --orange: #9a6700; --red: #cf222e;
+      --purple: #8250df; --teal: #1390a0;
+      --row-hover: rgba(0,0,0,.04);
+    }
+    body.light ::-webkit-scrollbar-track { background: var(--bg0); }
+    body.light mark.hl { background: rgba(9,105,218,.18); outline-color: rgba(9,105,218,.4); }
+    body.light tr.row-dim td { opacity: .35; }
+    body.light #rsbar { background: rgba(19,144,160,.06); border-color: rgba(19,144,160,.2); }
+    body.light #fbar  { background: rgba(154,103,0,.06);  border-color: rgba(154,103,0,.2); }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px; background: var(--bg0); color: var(--txt0);
+      display: flex; flex-direction: column;
+    }
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: var(--bg1); }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--txt2); }
+
+    /* ── Atoms ── */
+    input, select, button { font-family: inherit; font-size: 13px; }
+    .inp {
+      background: var(--bg2); border: 1px solid var(--border); color: var(--txt0);
+      border-radius: 6px; padding: 5px 9px; outline: none; height: 30px;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .inp:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(88,166,255,.12); }
+    .inp::placeholder { color: var(--txt2); }
+    .inp.mono { font-family: 'SF Mono', Consolas, monospace; }
+    .btn {
+      border: 1px solid var(--border); border-radius: 6px; padding: 5px 12px;
+      cursor: pointer; font-weight: 500; display: inline-flex; align-items: center;
+      gap: 5px; transition: all .15s; white-space: nowrap; height: 30px; line-height: 1;
+    }
+    .btn:disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
+    .btn-primary { background: var(--blue2); border-color: var(--blue2); color: #fff; }
+    .btn-primary:hover { background: var(--blue); border-color: var(--blue); }
+    .btn-ghost { background: transparent; color: var(--txt1); }
+    .btn-ghost:hover { background: var(--bg3); color: var(--txt0); }
+    .btn-outline { background: var(--bg2); color: var(--txt0); }
+    .btn-outline:hover { background: var(--bg3); border-color: var(--border2); }
+    .btn-sm { height: 24px; padding: 3px 8px; font-size: 11px; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500;
+    }
+    .badge-red   { background: rgba(248,81,73,.12);  color: var(--red);   border: 1px solid rgba(248,81,73,.25); }
+    .badge-green { background: rgba(63,185,80,.12);  color: var(--green); border: 1px solid rgba(63,185,80,.25); }
+    .vdiv { width: 1px; height: 18px; background: var(--border); margin: 0 2px; }
+
+    /* ── Header ── */
+    #hdr {
+      background: var(--bg1); border-bottom: 1px solid var(--border);
+      padding: 0 14px; display: flex; align-items: center; gap: 10px;
+      height: 44px; flex-shrink: 0; position: relative; z-index: 200;
+    }
+    .logo { font-size: 15px; font-weight: 700; color: var(--blue); letter-spacing: -.3px; }
+    .logo b { color: var(--green); }
+    .logo sup { font-size: 9px; color: var(--txt2); font-weight: 400; vertical-align: super; letter-spacing: .5px; }
+    .spacer { flex: 1; }
+    .spin {
+      width: 14px; height: 14px; border: 2px solid var(--border);
+      border-top-color: var(--blue); border-radius: 50%;
+      animation: spin .65s linear infinite; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Settings ── */
+    #settings {
+      background: var(--bg1); border-bottom: 1px solid var(--border);
+      padding: 12px 14px; display: none; gap: 10px; flex-wrap: wrap;
+      align-items: flex-end; flex-shrink: 0;
+    }
+    #settings.open { display: flex; }
+    .fg { display: flex; flex-direction: column; gap: 3px; }
+    .fg label { font-size: 10px; color: var(--txt2); text-transform: uppercase; letter-spacing: .6px; font-weight: 600; }
+
+    /* ── Tab bar ── */
+    #tabbar {
+      background: var(--bg1); border-bottom: 1px solid var(--border);
+      display: flex; align-items: flex-end; padding: 0 10px 0 14px;
+      gap: 2px; flex-shrink: 0; min-height: 37px; overflow-x: auto;
+    }
+    #tabbar::-webkit-scrollbar { height: 4px; }
+    .tab {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 12px 7px; border-radius: 6px 6px 0 0;
+      cursor: pointer; font-size: 12px; white-space: nowrap;
+      border: 1px solid transparent; border-bottom: none;
+      color: var(--txt2); background: transparent;
+      transition: all .12s; flex-shrink: 0; min-width: 0; max-width: 180px;
+    }
+    .tab:hover { color: var(--txt0); background: var(--bg2); }
+    .tab.active {
+      background: var(--bg0); border-color: var(--border);
+      color: var(--txt0); font-weight: 500;
+      box-shadow: 0 1px 0 var(--bg0);
+    }
+    .tab-label { overflow: hidden; text-overflow: ellipsis; }
+    .tab-badge { font-size: 10px; color: var(--txt2); font-family: monospace; }
+    .tab-close {
+      background: none; border: none; color: var(--txt2); cursor: pointer;
+      padding: 0; font-size: 13px; line-height: 1; border-radius: 3px;
+      width: 16px; height: 16px; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; opacity: 0; transition: opacity .15s;
+    }
+    .tab:hover .tab-close,
+    .tab.active .tab-close { opacity: 1; }
+    .tab-close:hover { color: var(--red) !important; background: rgba(248,81,73,.15); }
+    .tab-new {
+      background: none; border: none; color: var(--txt2); cursor: pointer;
+      font-size: 18px; line-height: 1; padding: 4px 8px; border-radius: 5px;
+      align-self: center; margin-left: 4px; transition: all .15s;
+    }
+    .tab-new:hover { color: var(--txt0); background: var(--bg3); }
+
+    /* ── Query bar ── */
+    #qbar {
+      background: var(--bg1); border-bottom: 1px solid var(--border);
+      padding: 8px 14px; display: flex; align-items: center; gap: 8px;
+      flex-shrink: 0; flex-wrap: wrap;
+    }
+
+    /* ── Field search bar ── */
+    #fsbar {
+      background: var(--bg1); border-bottom: 1px solid var(--border);
+      padding: 7px 14px; display: none; align-items: center; gap: 8px;
+      flex-shrink: 0; flex-wrap: wrap;
+    }
+    #fsbar.visible { display: flex; }
+    .fs-label { font-size: 10px; color: var(--txt2); text-transform: uppercase; letter-spacing: .6px; font-weight: 600; white-space: nowrap; }
+
+    /* ── Row filter bar ── */
+    #rsbar {
+      background: rgba(57,197,207,.05); border-bottom: 1px solid rgba(57,197,207,.18);
+      padding: 7px 14px 9px; display: none; flex-direction: column; gap: 5px;
+      flex-shrink: 0;
+    }
+    #rsbar.visible { display: flex; }
+    #rs-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .rs-label { font-size: 10px; color: var(--teal); text-transform: uppercase; letter-spacing: .6px; font-weight: 600; white-space: nowrap; }
+    /* Condition rows */
+    .rs-cond { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .rs-and-lbl { font-size: 10px; color: var(--txt2); font-family: monospace; font-weight: 700;
+                  min-width: 30px; text-align: center; }
+    .rs-col-inp { width: 120px !important; font-family: 'SF Mono', Consolas, monospace !important; }
+    .rs-op { height: 28px !important; font-size: 11px !important; padding: 0 6px !important; width: 130px !important; }
+    .rs-val { width: 190px !important; }
+    /* Custom column autocomplete dropdown */
+    #col-ac {
+      position: fixed; background: var(--bg1); border: 1px solid var(--border2);
+      border-radius: 6px; box-shadow: 0 6px 20px rgba(0,0,0,.45);
+      max-height: 240px; overflow-y: auto; z-index: 9500; display: none; min-width: 240px;
+    }
+    .col-ac-item {
+      padding: 6px 10px; cursor: pointer; display: flex; gap: 10px; align-items: baseline;
+      font-size: 12px; border-bottom: 1px solid var(--border);
+    }
+    .col-ac-item:last-child { border-bottom: none; }
+    .col-ac-item:hover, .col-ac-item.ac-active { background: var(--bg3); }
+    .col-ac-alias { font-family: 'SF Mono', Consolas, monospace; color: var(--blue); font-size: 11px; flex-shrink: 0; }
+    .col-ac-desc  { color: var(--txt2); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Cell highlight */
+    mark.hl {
+      background: rgba(57,197,207,.38); color: inherit;
+      border-radius: 2px; padding: 0 1px; outline: 1px solid rgba(57,197,207,.6);
+    }
+    mark.hl-orange { background: rgba(210,153,34,.4); color: inherit; border-radius: 2px; padding: 0 1px; }
+    tr.row-dim td { opacity: .28; }
+
+    /* ── Filter bar ── */
+    #fbar {
+      background: rgba(210,153,34,.06); border-bottom: 1px solid rgba(210,153,34,.2);
+      padding: 7px 14px; display: none; align-items: center; gap: 8px;
+      flex-shrink: 0; flex-wrap: wrap;
+    }
+    #fbar.visible { display: flex; }
+    .filter-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: rgba(210,153,34,.12); border: 1px solid rgba(210,153,34,.3);
+      color: var(--orange); border-radius: 12px; padding: 2px 10px;
+      font-size: 11px; font-family: 'SF Mono', Consolas, monospace;
+    }
+    .filter-chip button { background: none; border: none; color: inherit; cursor: pointer; padding: 0; font-size: 12px; }
+
+    /* ── Main ── */
+    #main { flex: 1; display: flex; overflow: hidden; position: relative; }
+
+    /* ── Grid ── */
+    #grid-wrap { flex: 1; overflow: auto; position: relative; }
+
+    #empty {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; height: 100%; gap: 10px; color: var(--txt1); padding: 20px;
+    }
+    #empty .icon { font-size: 52px; opacity: .25; }
+    #empty .etitle { font-size: 16px; font-weight: 500; }
+    #empty .esub { font-size: 12px; color: var(--txt2); text-align: center; max-width: 320px; line-height: 1.5; }
+    #empty .examples { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+    .ex-chip {
+      display: inline-flex; align-items: center;
+      background: var(--bg2); border: 1px solid var(--border); color: var(--blue);
+      border-radius: 6px; padding: 4px 10px; font-size: 11px; font-family: monospace;
+      cursor: pointer; transition: all .15s;
+    }
+    .ex-chip:hover { background: var(--bg3); border-color: var(--blue2); }
+
+    /* ── Table ── */
+    #tbl-container { display: none; height: 100%; }
+    table { border-collapse: collapse; white-space: nowrap; width: max-content; }
+    thead { position: sticky; top: 0; z-index: 10; }
+
+    th {
+      background: var(--bg2); border-right: 1px solid var(--border);
+      border-bottom: 2px solid var(--border); padding: 0; user-select: none;
+    }
+    th:first-child {
+      position: sticky; left: 0; z-index: 11; border-right: 2px solid var(--border);
+      background: var(--bg2);
+    }
+    .th-inner { display: flex; align-items: center; gap: 5px; padding: 5px var(--tbl-pad-h); cursor: pointer; }
+    th:first-child .th-inner { cursor: default; }
+    .th-alias { font-family: 'SF Mono', Consolas, monospace; font-size: var(--th-fs); font-weight: 700; color: var(--blue); }
+    .th-desc { font-size: var(--th-fs); color: var(--txt2); max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+    .th-sort { color: var(--txt2); font-size: 10px; margin-left: 2px; }
+    .pin-icon {
+      cursor: pointer; font-size: 11px; color: var(--txt2);
+      opacity: 0; transition: opacity .15s; padding: 1px 3px; border-radius: 3px;
+      background: none; border: none;
+    }
+    th:hover .pin-icon { opacity: 1; }
+    th.col-pinned { background: rgba(63,185,80,.07); }
+    th.col-pinned .th-alias { color: var(--green); }
+    th.col-pinned .pin-icon { opacity: 1; color: var(--green); }
+    th.col-match { background: rgba(88,166,255,.09); }
+    th.col-match .th-alias { color: var(--orange); }
+    th.col-dimmed { opacity: .35; }
+
+    td {
+      border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      padding: var(--tbl-pad-v) var(--tbl-pad-h); max-width: 220px; overflow: hidden; text-overflow: ellipsis;
+      color: var(--txt0); font-size: var(--tbl-fs);
+    }
+    td:first-child {
+      position: sticky; left: 0; background: var(--bg1);
+      color: var(--txt2); font-size: 11px; font-family: monospace;
+      text-align: right; border-right: 2px solid var(--border);
+      padding: var(--tbl-pad-v) var(--tbl-pad-h); min-width: 52px; z-index: 5;
+    }
+    tr:hover td { background: var(--row-hover); }
+    tr:hover td:first-child { background: var(--bg2); }
+    td.null-cell { color: var(--txt2); font-style: italic; font-size: 11px; }
+
+    /* ── Column panel ── */
+    #colpanel {
+      width: 270px; flex-shrink: 0; background: var(--bg1);
+      border-left: 1px solid var(--border); display: none; flex-direction: column; overflow: hidden;
+    }
+    #colpanel.open { display: flex; }
+    #colpanel-hdr { padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+    #colpanel-hdr span { font-weight: 600; font-size: 12px; flex: 1; }
+    #colpanel-list { flex: 1; overflow-y: auto; padding: 6px 8px; }
+    .col-item {
+      display: flex; align-items: center; gap: 7px;
+      padding: 5px 6px; border-radius: 5px; cursor: pointer; transition: background .12s;
+    }
+    .col-item:hover { background: var(--bg3); }
+    .col-item input[type=checkbox] { accent-color: var(--blue); cursor: pointer; flex-shrink: 0; }
+    .col-alias { font-family: 'SF Mono', Consolas, monospace; font-size: 11px; color: var(--blue); }
+    .col-alias.pinned-col { color: var(--green); }
+    .col-dsc { font-size: 10px; color: var(--txt2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
+    .col-pin-btn { background: none; border: none; cursor: pointer; color: var(--txt2); font-size: 12px; margin-left: auto; padding: 2px 4px; border-radius: 3px; opacity: .5; }
+    .col-pin-btn:hover { opacity: 1; color: var(--green); }
+    .col-pin-btn.active { opacity: 1; color: var(--green); }
+
+    /* ── Status bar ── */
+    #sbar {
+      background: var(--bg1); border-top: 1px solid var(--border);
+      padding: 4px 14px; display: flex; align-items: center; justify-content: space-between;
+      font-size: 11px; color: var(--txt2); flex-shrink: 0; height: 26px;
+    }
+
+    /* ── Filter popup ── */
+    #filter-popup {
+      position: fixed; top: 0; left: 0;
+      background: var(--bg1); border: 1px solid var(--border2); border-radius: 8px;
+      padding: 14px; width: 340px; box-shadow: 0 8px 24px rgba(0,0,0,.5);
+      display: none; flex-direction: column; gap: 10px; z-index: 8500;
+    }
+    #filter-popup.open { display: flex; }
+    #filter-popup h4 { font-size: 12px; font-weight: 600; }
+
+    /* ── Chips ── */
+    .pchip {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: rgba(63,185,80,.1); border: 1px solid rgba(63,185,80,.25);
+      color: var(--green); border-radius: 10px; padding: 2px 8px; font-size: 11px; font-family: monospace;
+    }
+    .pchip button { background: none; border: none; color: inherit; cursor: pointer; padding: 0; font-size: 11px; }
+
+    /* ── Tooltip ── */
+    #tip {
+      position: fixed; background: var(--bg3); border: 1px solid var(--border2);
+      border-radius: 6px; padding: 7px 10px; font-size: 11px; color: var(--txt0);
+      max-width: 340px; word-break: break-all; z-index: 9999; display: none;
+      pointer-events: none; box-shadow: 0 4px 16px rgba(0,0,0,.5);
+      line-height: 1.5; white-space: pre-wrap;
+    }
+
+    /* ── Tab title in grid ── */
+    #tbl-title {
+      font-size: 11px; color: var(--txt2); padding: 5px 9px 0;
+      font-style: italic; display: none;
+    }
+
+    /* ── Export feedback ── */
+    #export-msg {
+      position: fixed; bottom: 36px; right: 16px;
+      background: var(--green); color: #0d1117;
+      padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+      display: none; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,.4);
+    }
+
+    /* ── Column resize handle ── */
+    .col-resize-handle {
+      position: absolute; right: 0; top: 0; bottom: 0; width: 6px;
+      cursor: col-resize; z-index: 2; background: transparent;
+      transition: background .1s;
+    }
+    .col-resize-handle:hover, .col-resize-handle.resizing { background: var(--blue); opacity: .6; }
+    th { position: relative; }
+
+    /* ── Drag & Drop ── */
+    th[draggable="true"] { cursor: grab; }
+    th[draggable="true"]:active { cursor: grabbing; }
+    th.dragging { opacity: .3; }
+    th.drop-left  { box-shadow: inset 3px 0 0 var(--blue); }
+    th.drop-right { box-shadow: inset -3px 0 0 var(--blue); }
+
+    /* ── Formats popup ── */
+    #formats-popup {
+      position: fixed;
+      background: var(--bg1); border: 1px solid var(--border2); border-radius: 8px;
+      padding: 14px; width: 300px; box-shadow: 0 8px 24px rgba(0,0,0,.6);
+      display: none; flex-direction: column; gap: 10px; z-index: 9000;
+    }
+    #formats-popup.open { display: flex; }
+    #formats-popup h4 { font-size: 12px; font-weight: 600; color: var(--purple); }
+    .fmt-item {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 8px; border-radius: 5px; background: var(--bg2);
+      border: 1px solid var(--border);
+    }
+    .fmt-name { flex: 1; font-size: 12px; color: var(--txt0); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .fmt-empty { font-size: 11px; color: var(--txt2); font-style: italic; text-align: center; padding: 8px 0; }
+
+    /* ── Grid compact mode (zoom ≤ 80%) ── */
+    body.grid-compact .th-desc { display: none; }
+  </style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<div id="hdr">
+  <div class="logo">JDE <b>DataBrowser</b><sup>PRO</sup></div>
+  <div class="vdiv"></div>
+  <button class="btn btn-ghost btn-sm" onclick="toggleSettings()">⚙ Connection</button>
+  <div id="conn-badge" class="badge badge-red">● Disconnected</div>
+  <div class="spacer"></div>
+  <div id="spinner" style="display:none"><div class="spin"></div></div>
+  <button class="btn btn-ghost btn-sm" id="filter-btn" onclick="toggleFilterPopup()" style="display:none">⊞ Filter</button>
+  <button class="btn btn-ghost btn-sm" id="export-btn" onclick="exportCSV()" style="display:none">↓ CSV</button>
+  <button class="btn btn-ghost btn-sm" id="colpanel-btn" onclick="toggleColPanel()" style="display:none">≡ Columns</button>
+  <button class="btn btn-sm" id="formats-btn" onclick="toggleFormatsPopup()" style="display:none;color:#fff;background:#7c3aed;border-color:#7c3aed;font-weight:600">⊡ Formats</button>
+  <div class="vdiv"></div>
+  <div style="display:flex;align-items:center;gap:5px;flex-shrink:0" title="Grid zoom — shrinks rows and headers. Below 80% the column description is hidden and shown on hover.">
+    <span style="font-size:11px;color:var(--txt2);user-select:none">⊟</span>
+    <input type="range" id="zoom-slider" min="60" max="105" value="100" step="5"
+      style="width:72px;accent-color:var(--blue);cursor:pointer;height:4px;vertical-align:middle"
+      oninput="applyZoom(+this.value)">
+    <span id="zoom-pct" style="font-size:11px;color:var(--txt2);min-width:30px;text-align:right;white-space:nowrap;font-family:monospace">100%</span>
+  </div>
+  <div class="vdiv"></div>
+  <button id="theme-btn" onclick="toggleTheme()" title="Toggle light / dark mode"
+    style="background:var(--bg2);border:1px solid var(--border);border-radius:20px;
+           padding:3px 10px 3px 8px;cursor:pointer;display:flex;align-items:center;
+           gap:5px;font-size:12px;color:var(--txt1);height:26px;transition:all .2s;
+           white-space:nowrap;font-family:inherit">
+    <span id="theme-icon" style="font-size:14px;line-height:1">🌙</span>
+    <span id="theme-label">Dark</span>
+  </button>
+</div>
+
+<!-- ═══ SETTINGS ═══ -->
+<div id="settings">
+  <div class="fg">
+    <label>AIS Server URL</label>
+    <input class="inp" id="i-url" type="url" placeholder="http://192.168.10.24:6083" style="width:260px">
+  </div>
+  <div class="fg">
+    <label>Username</label>
+    <input class="inp" id="i-user" type="text" placeholder="JDE1" style="width:110px">
+  </div>
+  <div class="fg">
+    <label>Password</label>
+    <input class="inp" id="i-pass" type="password" placeholder="••••••••" style="width:110px">
+  </div>
+  <div class="fg">
+    <label>Environment</label>
+    <input class="inp" id="i-env" type="text" placeholder="JDV920" style="width:100px">
+  </div>
+  <div class="fg">
+    <label>Role</label>
+    <input class="inp" id="i-role" type="text" value="*ALL" style="width:70px">
+  </div>
+  <div style="display:flex; gap:8px; align-items:flex-end">
+    <button class="btn btn-primary" onclick="connect()">Connect</button>
+    <button class="btn btn-ghost" onclick="toggleSettings()">Cancel</button>
+  </div>
+  <div style="flex:1"></div>
+  <div style="font-size:10px; color:var(--txt2); align-self:flex-end; max-width:200px; line-height:1.5">
+    ⚠ AIS server must allow CORS. Credentials are never stored.
+  </div>
+</div>
+
+<!-- ═══ TAB BAR ═══ -->
+<div id="tabbar">
+  <div id="tabs-list" style="display:flex; align-items:flex-end; gap:2px; flex:1; min-width:0; overflow-x:auto"></div>
+  <button class="tab-new" onclick="newTab()" title="Open new tab">+</button>
+</div>
+
+<!-- ═══ QUERY BAR ═══ -->
+<div id="qbar">
+  <select class="inp" id="q-type" style="width:135px">
+    <option value="table">Table</option>
+    <option value="businessview">Business View</option>
+  </select>
+  <input class="inp mono" id="q-target" type="text" placeholder="F4101" style="width:140px; text-transform:uppercase"
+    oninput="this.value=this.value.toUpperCase()">
+  <select class="inp" id="q-size" style="width:90px">
+    <option value="50" selected>50 rows</option>
+    <option value="100">100 rows</option>
+    <option value="250">250 rows</option>
+    <option value="500">500 rows</option>
+    <option value="1000">1000 rows</option>
+  </select>
+  <button class="btn btn-primary" id="browse-btn" onclick="browse(true)">▶ Browse</button>
+  <div class="spacer"></div>
+  <span id="page-lbl" style="display:none; color:var(--txt1); font-size:11px; white-space:nowrap"></span>
+</div>
+
+<!-- ═══ FIELD SEARCH BAR ═══ -->
+<div id="fsbar">
+  <span class="fs-label">Field Search</span>
+  <input class="inp" id="fs-inp" type="text" placeholder="Search alias or description…"
+    style="width:230px" oninput="applyColSearch()">
+  <button class="btn btn-ghost btn-sm" onclick="clearFieldSearch()">✕</button>
+  <label style="display:flex; align-items:center; gap:5px; font-size:11px; color:var(--txt1); cursor:pointer; margin-left:4px">
+    <input type="checkbox" id="fs-filter-mode" onchange="applyColSearch()" style="accent-color:var(--blue)">
+    Filter mode
+  </label>
+  <div class="vdiv"></div>
+  <span id="fs-match" style="font-size:11px; color:var(--txt2)"></span>
+  <div class="spacer"></div>
+  <div id="pin-chips" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center"></div>
+  <button class="btn btn-ghost btn-sm" id="reset-pins-btn" onclick="resetPins()" style="display:none">↺ Reset Order</button>
+</div>
+
+<!-- ═══ ROW FILTER BAR ═══ -->
+<div id="rsbar">
+  <div id="rs-header">
+    <span class="rs-label">⊟ Row Filters</span>
+    <button class="btn btn-ghost btn-sm" onclick="addDataCondition()"
+      style="color:var(--teal);border-color:rgba(57,197,207,.35)">+ Condition</button>
+    <button class="btn btn-ghost btn-sm" id="rs-clear-btn" onclick="clearDataConditions()"
+      style="display:none">✕ Clear All</button>
+    <span id="rs-match" style="font-size:11px;color:var(--teal);white-space:nowrap;font-weight:500"></span>
+    <div style="flex:1"></div>
+    <button class="btn btn-sm" id="rs-search-btn" onclick="searchTable()"
+      title="Search the ENTIRE table on the server using these conditions (not just the loaded rows)"
+      style="background:var(--blue2);border-color:var(--blue2);color:#fff;font-weight:600;display:none">
+      🔍 Search Table
+    </button>
+    <div class="vdiv" id="rs-search-div" style="display:none"></div>
+    <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--txt1);cursor:pointer;white-space:nowrap">
+      <input type="checkbox" id="rs-highlight" checked onchange="applyDataConditions()" style="accent-color:var(--teal)">
+      Highlight
+    </label>
+    <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--txt1);cursor:pointer;white-space:nowrap;margin-left:4px">
+      <input type="checkbox" id="rs-filter-mode" onchange="applyDataConditions()" style="accent-color:var(--teal)">
+      Filter rows
+    </label>
+  </div>
+  <div id="rs-conditions"></div>
+</div>
+
+<!-- ═══ FILTER BAR ═══ -->
+<div id="fbar">
+  <span class="fs-label" style="color:var(--orange)">Filters</span>
+  <div id="filter-chips" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center"></div>
+  <button class="btn btn-ghost btn-sm" onclick="clearAllFilters()">Clear All</button>
+</div>
+
+<!-- ═══ MAIN ═══ -->
+<div id="main">
+  <div id="grid-wrap">
+
+
+    <!-- Empty state -->
+    <div id="empty">
+      <div class="icon">🗄</div>
+      <div class="etitle">No data loaded</div>
+      <div class="esub">Connect to your AIS server, enter a table name and click Browse — or try a shortcut:</div>
+      <div class="examples">
+        <div class="ex-chip" onclick="quickLoad('F4101')">F4101</div>
+        <div class="ex-chip" onclick="quickLoad('F0101')">F0101</div>
+        <div class="ex-chip" onclick="quickLoad('F4211')">F4211</div>
+        <div class="ex-chip" onclick="quickLoad('F4311')">F4311</div>
+        <div class="ex-chip" onclick="quickLoad('F0911')">F0911</div>
+        <div class="ex-chip" onclick="quickLoad('F41021')">F41021</div>
+        <div class="ex-chip" onclick="quickLoad('F4801')">F4801</div>
+        <div class="ex-chip" onclick="quickLoad('F03B11')">F03B11</div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div id="tbl-container">
+      <div id="tbl-title"></div>
+      <table>
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Formats popup -->
+    <div id="formats-popup">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <h4>⊡ Grid Formats</h4>
+        <label style="font-size:10px;color:var(--txt2);cursor:pointer;display:flex;align-items:center;gap:4px;user-select:none">
+          <input type="checkbox" id="fmt-show-all" onchange="renderFormatsList()"
+            style="accent-color:var(--purple);margin:0">
+          Show all tables
+        </label>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center">
+        <input class="inp" id="fmt-name-inp" type="text" placeholder="Format name…" style="flex:1"
+          onkeydown="if(event.key==='Enter')saveCurrentFormat()">
+        <button class="btn btn-primary btn-sm" onclick="saveCurrentFormat()">Save</button>
+      </div>
+      <div id="fmt-list" style="display:flex; flex-direction:column; gap:5px; max-height:280px; overflow-y:auto"></div>
+    </div>
+
+  </div>
+
+  <!-- Column panel -->
+  <div id="colpanel">
+    <div id="colpanel-hdr">
+      <span>Columns <small id="colpanel-count" style="color:var(--txt2); font-weight:400"></small></span>
+      <button class="btn btn-ghost btn-sm" onclick="toggleColPanel()">✕</button>
+    </div>
+    <div style="padding:7px 8px; border-bottom:1px solid var(--border)">
+      <input class="inp" id="colpanel-search" style="width:100%" placeholder="Search fields…" oninput="renderColPanel()">
+    </div>
+    <div style="padding:5px 8px; border-bottom:1px solid var(--border); display:flex; gap:6px">
+      <button class="btn btn-ghost btn-sm" onclick="showAllCols()">Show All</button>
+      <button class="btn btn-ghost btn-sm" onclick="hideAllCols()">Hide All</button>
+    </div>
+    <div id="colpanel-list"></div>
+  </div>
+</div>
+
+<!-- ═══ STATUS BAR ═══ -->
+<div id="sbar">
+  <span id="sbar-msg">Ready</span>
+  <div style="display:flex; gap:12px; align-items:center">
+    <span id="sbar-total"></span>
+    <span id="sbar-cols"></span>
+  </div>
+</div>
+
+<!-- ═══ TOOLTIP ═══ -->
+<div id="tip"></div>
+<div id="export-msg">✓ CSV Downloaded</div>
+<div id="col-ac"></div>
+
+<!-- ═══ FILTER POPUP (fixed, viewport-level) ═══ -->
+<div id="filter-popup">
+  <h4>⊞ Add Filter Condition</h4>
+  <div class="fg">
+    <label>Field Alias (short, e.g. AN8)</label>
+    <input class="inp mono" id="fp-field" type="text" placeholder="AN8" style="width:100%; text-transform:uppercase"
+      oninput="this.value=this.value.toUpperCase()">
+  </div>
+  <div style="display:flex; gap:8px">
+    <div class="fg" style="flex:1">
+      <label>Operator</label>
+      <select class="inp" id="fp-op" style="width:100%">
+        <option value="EQUAL">= Equal</option>
+        <option value="NOT_EQUAL">≠ Not Equal</option>
+        <option value="GREATER">&gt; Greater</option>
+        <option value="LESS">&lt; Less</option>
+        <option value="GREATER_EQUAL">≥ Greater or Equal</option>
+        <option value="LESS_EQUAL">≤ Less or Equal</option>
+        <option value="STR_START_WITH">Starts With</option>
+        <option value="LIKE">Like (contains)</option>
+      </select>
+    </div>
+    <div class="fg" style="flex:1">
+      <label>Value</label>
+      <input class="inp" id="fp-val" type="text" placeholder="value" style="width:100%">
+    </div>
+  </div>
+  <div style="display:flex; gap:8px">
+    <button class="btn btn-primary" style="flex:1" onclick="addFilter()">Add Filter &amp; Browse</button>
+    <button class="btn btn-ghost" onclick="closeFilterPopup()">Cancel</button>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════
+// CONSTANTS & CREDENTIALS
+// ════════════════════════════════════════
+const DEVICE_NAME = 'ChatJDE';
+const CREDS = { user: '', pass: '', env: '', role: '*ALL' };
+
+// ════════════════════════════════════════
+// TAB STATE MANAGEMENT
+// ════════════════════════════════════════
+let TABS = [];
+let ACTIVE = -1;
+let S = null; // always points to TABS[ACTIVE]
+
+let _tabId = 0;
+function mkTab(target = '', type = 'table') {
+  return {
+    _id: ++_tabId,
+    target, targetType: type,
+    title: '', loaded: false,
+    page: 0, pageSize: 50,
+    totalRecords: 0, moreRecords: false,
+    rows: [], allCols: [], colOrder: [],
+    pinnedCols: [], hiddenCols: new Set(),
+    colSearch: '', colFilterMode: false,
+    dataConditions: [],          // [{col:'', op:'contains', val:''}]
+    sortCol: null, sortDir: 'asc',
+    filters: [],
+    colWidths: {},
+  };
+}
+
+function newTab(target = '', type = 'table') {
+  const t = mkTab(target, type);
+  TABS.push(t);
+  switchTab(TABS.length - 1);
+  syncQueryBar();
+  return t;
+}
+
+function closeTab(idx, e) {
+  if (e) e.stopPropagation();
+  TABS.splice(idx, 1);
+  if (TABS.length === 0) {
+    TABS.push(mkTab());
+    ACTIVE = 0;
+  } else {
+    ACTIVE = Math.min(idx, TABS.length - 1);
+  }
+  S = TABS[ACTIVE];
+  renderTabs();
+  refreshUI();
+  syncQueryBar();
+}
+
+function switchTab(idx) {
+  ACTIVE = idx;
+  S = TABS[ACTIVE];
+  renderTabs();
+  refreshUI();
+  syncQueryBar();
+}
+
+function renderTabs() {
+  const container = document.getElementById('tabs-list');
+  container.innerHTML = '';
+  TABS.forEach((t, i) => {
+    const div = document.createElement('div');
+    div.className = 'tab' + (i === ACTIVE ? ' active' : '');
+    div.onclick = () => switchTab(i);
+    const label = t.loaded ? t.target : (t.target || 'New Tab');
+    div.innerHTML = `
+      <span class="tab-label">${escHtml(label)}</span>
+      ${t.loaded ? `<span class="tab-badge">(${t.totalRecords.toLocaleString()})</span>` : ''}
+      <button class="tab-close" onclick="closeTab(${i}, event)" title="Close tab">✕</button>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function syncQueryBar() {
+  if (!S) return;
+  document.getElementById('q-target').value = S.target || '';
+  document.getElementById('q-type').value = S.targetType || 'table';
+  document.getElementById('q-size').value = S.pageSize || 50;
+  document.getElementById('fs-inp').value = S.colSearch || '';
+  document.getElementById('fs-filter-mode').checked = S.colFilterMode || false;
+  renderDataConditions();
+  const match = document.getElementById('rs-match');
+  if (match) match.textContent = '';
+}
+
+function refreshUI() {
+  if (!S) return;
+  if (S.loaded) {
+    showDataUI();
+    renderGrid();
+    renderPagination();
+    renderPinChips();
+    renderColPanel();
+    renderFilterChips();
+    updateSbarRight();
+  } else {
+    showEmptyUI();
+    updateSbarRight();
+  }
+}
+
+function showDataUI() {
+  document.getElementById('empty').style.display = 'none';
+  document.getElementById('tbl-container').style.display = 'block';
+  document.getElementById('fsbar').classList.add('visible');
+  document.getElementById('rsbar').classList.add('visible');
+  document.getElementById('fbar').classList.toggle('visible', S.filters.length > 0);
+  document.getElementById('filter-btn').style.display = '';
+  document.getElementById('export-btn').style.display = '';
+  document.getElementById('colpanel-btn').style.display = '';
+  document.getElementById('formats-btn').style.display = '';
+  // pagination UI removed
+  document.getElementById('tbl-title').style.display = S.title ? 'block' : 'none';
+  document.getElementById('tbl-title').textContent = S.title;
+  // Search button is always visible once a table is loaded
+  const srchBtn = document.getElementById('rs-search-btn');
+  const srchDiv = document.getElementById('rs-search-div');
+  if (srchBtn) srchBtn.style.display = '';
+  if (srchDiv) srchDiv.style.display = '';
+}
+
+function showEmptyUI() {
+  document.getElementById('tbl-container').style.display = 'none';
+  document.getElementById('empty').style.display = 'flex';
+  document.getElementById('fsbar').classList.remove('visible');
+  document.getElementById('rsbar').classList.remove('visible');
+  document.getElementById('fbar').classList.remove('visible');
+  document.getElementById('filter-btn').style.display = 'none';
+  document.getElementById('export-btn').style.display = 'none';
+  document.getElementById('colpanel-btn').style.display = 'none';
+  document.getElementById('formats-btn').style.display = 'none';
+  // pagination UI removed
+  document.getElementById('reset-pins-btn').style.display = 'none';
+  document.getElementById('pin-chips').innerHTML = '';
+  document.getElementById('filter-chips').innerHTML = '';
+  document.getElementById('colpanel').classList.remove('open');
+  // Hide search button when no table is loaded
+  const srchBtn = document.getElementById('rs-search-btn');
+  const srchDiv = document.getElementById('rs-search-div');
+  if (srchBtn) srchBtn.style.display = 'none';
+  if (srchDiv) srchDiv.style.display = 'none';
+  document.getElementById('sbar-total').textContent = '';
+  document.getElementById('sbar-cols').textContent = '';
+}
+
+function showErr(msg) {
+  S.loaded = false;
+  document.getElementById('tbl-container').style.display = 'none';
+  const e = document.getElementById('empty');
+  e.innerHTML = `
+    <div class="icon" style="opacity:.5">⚠</div>
+    <div class="etitle" style="color:var(--red)">Error</div>
+    <div class="esub">${msg}</div>
+    <button class="btn btn-outline btn-sm" onclick="resetTab()" style="margin-top:8px">← Back</button>
+  `;
+  e.style.display = 'flex';
+}
+
+function resetTab() {
+  S.loaded = false;
+  S.rows = []; S.allCols = []; S.colOrder = []; S.pinnedCols = [];
+  S.hiddenCols = new Set(); S.filters = []; S.page = 0;
+  S.sortCol = null; S.sortDir = 'asc'; S.title = '';
+  S.dataConditions = [];
+  renderTabs();
+  restoreEmptyState();
+  showEmptyUI();
+  setMsg('Ready');
+}
+
+function restoreEmptyState() {
+  document.getElementById('empty').innerHTML = `
+    <div class="icon">🗄</div>
+    <div class="etitle">No data loaded</div>
+    <div class="esub">Connect to your AIS server, enter a table name and click Browse — or try a shortcut:</div>
+    <div class="examples">
+      <div class="ex-chip" onclick="quickLoad('F4101')">F4101</div>
+      <div class="ex-chip" onclick="quickLoad('F0101')">F0101</div>
+      <div class="ex-chip" onclick="quickLoad('F4211')">F4211</div>
+      <div class="ex-chip" onclick="quickLoad('F4311')">F4311</div>
+      <div class="ex-chip" onclick="quickLoad('F0911')">F0911</div>
+      <div class="ex-chip" onclick="quickLoad('F41021')">F41021</div>
+      <div class="ex-chip" onclick="quickLoad('F4801')">F4801</div>
+      <div class="ex-chip" onclick="quickLoad('F03B11')">F03B11</div>
+    </div>
+  `;
+}
+
+// ════════════════════════════════════════
+// PERSISTENCE
+// ════════════════════════════════════════
+function savePrefs() {
+  try {
+    localStorage.setItem('jdbp_url',  document.getElementById('i-url').value);
+    localStorage.setItem('jdbp_user', document.getElementById('i-user').value);
+    localStorage.setItem('jdbp_env',  document.getElementById('i-env').value);
+    localStorage.setItem('jdbp_role', document.getElementById('i-role').value);
+  } catch(_) {}
+}
+function loadPrefs() {
+  try {
+    const v = k => localStorage.getItem(k);
+    if (v('jdbp_url'))  document.getElementById('i-url').value  = v('jdbp_url');
+    if (v('jdbp_user')) document.getElementById('i-user').value = v('jdbp_user');
+    if (v('jdbp_env'))  document.getElementById('i-env').value  = v('jdbp_env');
+    if (v('jdbp_role')) document.getElementById('i-role').value = v('jdbp_role');
+    if (v('jdbp_url') || v('jdbp_user')) document.getElementById('settings').classList.add('open');
+  } catch(_) {}
+}
+
+// ════════════════════════════════════════
+// UI HELPERS
+// ════════════════════════════════════════
+function toggleSettings() { document.getElementById('settings').classList.toggle('open'); }
+function setMsg(m) { document.getElementById('sbar-msg').textContent = m; }
+function setConnBadge(on, label) {
+  const b = document.getElementById('conn-badge');
+  b.className = 'badge ' + (on ? 'badge-green' : 'badge-red');
+  b.textContent = '● ' + label;
+}
+function showSpinner(v) {
+  document.getElementById('spinner').style.display = v ? 'flex' : 'none';
+  document.getElementById('browse-btn').disabled = v;
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function updateSbarRight() {
+  document.getElementById('sbar-total').textContent =
+    S.loaded ? S.totalRecords.toLocaleString() + ' records' : '';
+  if (S.loaded && hasActiveConditions()) {
+    const filtered = getFilteredRows().length;
+    document.getElementById('sbar-cols').textContent =
+      `${filtered} / ${S.rows.length} rows · ${getVisibleCols().length} / ${S.allCols.length} fields`;
+  } else {
+    document.getElementById('sbar-cols').textContent =
+      S.loaded ? `${getVisibleCols().length} / ${S.allCols.length} fields` : '';
+  }
+}
+function quickLoad(name) {
+  if (!token) {
+    document.getElementById('settings').classList.add('open');
+    setMsg('Connect first, then click the shortcut.');
+    return;
+  }
+  // Open in current tab if empty, otherwise new tab
+  if (S.loaded) newTab(name, 'table');
+  else { S.target = name; S.targetType = 'table'; }
+  document.getElementById('q-target').value = name;
+  document.getElementById('q-type').value = 'table';
+  browse(true);
+}
+
+// ════════════════════════════════════════
+// AIS API
+// ════════════════════════════════════════
+let token = null;
+
+async function aisPost(path, body) {
+  const url = (localStorage.getItem('jdbp_url') || '').replace(/\/$/, '') + path;
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    let txt = '';
+    try { txt = await r.text(); } catch(_) {}
+    throw new Error(`HTTP ${r.status} — ${txt.substring(0, 400)}`);
+  }
+  return r.json();
+}
+
+function extractToken(data) {
+  return data?.userInfo?.token
+    || data?.userInfo?.jdeSessionToken
+    || data?.token
+    || data?.jdeSessionToken
+    || null;
+}
+
+async function reauth() {
+  if (!CREDS.pass) return false;
+  try {
+    const d = await aisPost('/jderest/v2/tokenrequest', {
+      username: CREDS.user, password: CREDS.pass,
+      environment: CREDS.env, role: CREDS.role, deviceName: DEVICE_NAME,
+    });
+    const tok = extractToken(d);
+    if (tok) { token = tok; return true; }
+  } catch(_) {}
+  return false;
+}
+
+async function connect() {
+  const url  = document.getElementById('i-url').value.trim();
+  const user = document.getElementById('i-user').value.trim();
+  const pass = document.getElementById('i-pass').value;
+  const env  = document.getElementById('i-env').value.trim();
+  const role = document.getElementById('i-role').value.trim() || '*ALL';
+  if (!url || !user || !pass) { alert('Please fill in AIS URL, username, and password.'); return; }
+  // Temporarily store URL so aisPost can use it
+  localStorage.setItem('jdbp_url', url);
+  setConnBadge(false, 'Connecting…'); showSpinner(true);
+  try {
+    savePrefs();
+    const data = await aisPost('/jderest/v2/tokenrequest', {
+      username: user, password: pass, environment: env, role, deviceName: DEVICE_NAME,
+    });
+    console.log('[JDE] Token response keys:', Object.keys(data || {}));
+    token = extractToken(data);
+    if (!token) {
+      console.error('[JDE] Full response:', JSON.stringify(data));
+      throw new Error('No token in response. Check console for raw response.');
+    }
+    CREDS.user = user; CREDS.pass = pass; CREDS.env = env; CREDS.role = role;
+    setConnBadge(true, `${user}@${env}`);
+    setMsg('Connected. Enter a table name and click Browse.');
+    document.getElementById('settings').classList.remove('open');
+  } catch(e) {
+    setConnBadge(false, 'Failed'); setMsg('Connection failed.');
+    const isCors = /NetworkError|Failed to fetch|fetch/i.test(e.message);
+    alert('Connection error:\n' + e.message + (isCors ? '\n\nThis may be a CORS issue.' : ''));
+  }
+  showSpinner(false);
+}
+
+function isTokenError(msg) {
+  return /444|401|403|invalid token|please request a new token/i.test(msg);
+}
+
+// ════════════════════════════════════════
+// RESPONSE PARSING
+// ════════════════════════════════════════
+function parseBrowseResponse(data, target) {
+  // Primary format: fs_DATABROWSE_TABLENAME wrapper (JDE AIS form-based response)
+  const fsKey = Object.keys(data).find(k => k.startsWith('fs_DATABROWSE_'));
+  if (fsKey) {
+    const fs   = data[fsKey];
+    const gd   = fs?.data?.gridData;
+    const cols = gd?.columns || {};  // {"F0101_AN8": "Address Number", ...}
+    const rows = (gd?.rowset || []).map(r => { const n={}; Object.keys(r).forEach(k=>{ if(k!=='rowIndex') n[k]=r[k]; }); return n; });
+    return {
+      title:   fs?.title || target,
+      colsMap: cols,
+      rows,
+      total:   gd?.summary?.records ?? rows.length,
+      more:    gd?.summary?.moreRecords === true,
+    };
+  }
+  // Legacy flat format
+  const rows = (data.rowset || []).map(r => {
+    const n = {};
+    Object.keys(r).forEach(k => {
+      if (k === 'rowIndex') return;
+      const v = r[k];
+      n[k] = (v !== null && v !== undefined && typeof v === 'object' && 'value' in v) ? v.value : v;
+    });
+    return n;
+  });
+  return {
+    title:   target,
+    colsMap: null,
+    rows,
+    total:   data.summary?.records ?? rows.length,
+    more:    data.summary?.moreData !== false,
+  };
+}
+
+function buildCols(colsMap, target) {
+  if (!colsMap) return [];
+  const prefix = target.toUpperCase() + '_';
+  return Object.entries(colsMap).map(([key, desc]) => ({
+    key,   // full key: F0101_AN8 — used to access row[key]
+    alias: key.startsWith(prefix) ? key.slice(prefix.length) : key, // short: AN8
+    desc:  typeof desc === 'string' ? desc : String(desc || ''),
+  }));
+}
+
+// Build cols from row keys when no colsMap available
+function buildColsFromRows(rows, target) {
+  const seen = new Set();
+  rows.forEach(r => Object.keys(r).forEach(k => seen.add(k)));
+  const prefix = target.toUpperCase() + '_';
+  return [...seen].map(key => ({
+    key,
+    alias: key.startsWith(prefix) ? key.slice(prefix.length) : key,
+    desc: '',
+  }));
+}
+
+// ════════════════════════════════════════
+// BROWSE
+// ════════════════════════════════════════
+async function browse(fresh) {
+  if (!token) {
+    alert('Please connect to JDE first.');
+    document.getElementById('settings').classList.add('open');
+    return;
+  }
+  const target   = document.getElementById('q-target').value.trim().toUpperCase();
+  const type     = document.getElementById('q-type').value;
+  const pageSize = parseInt(document.getElementById('q-size').value);
+  if (!target) { alert('Enter a table or business view name.'); return; }
+
+  if (fresh) {
+    S.page = 0; S.target = target; S.targetType = type; S.pageSize = pageSize;
+    S.allCols = []; S.colOrder = []; S.pinnedCols = []; S.hiddenCols = new Set();
+    S.sortCol = null; S.sortDir = 'asc'; S.rows = []; S.loaded = false;
+  }
+
+  showSpinner(true);
+  setMsg(`Loading ${S.target}…`);
+
+  try {
+    const body = {
+      token,
+      targetName:      S.target,
+      targetType:      S.targetType,
+      dataServiceType: 'BROWSE',
+      deviceName:      DEVICE_NAME,
+      maxPageSize:     S.pageSize,
+      startAt:         S.page * S.pageSize,
+      // condition:[] must always be present — this AIS version requires it even when empty
+      query: { autoFind: true, condition: [] },
+    };
+
+    let data;
+    try {
+      data = await aisPost('/jderest/v2/dataservice', body);
+    } catch(e) {
+      if (isTokenError(e.message) && CREDS.pass) {
+        setMsg('Session expired — reconnecting…');
+        if (await reauth()) {
+          body.token = token;
+          data = await aisPost('/jderest/v2/dataservice', body);
+          setConnBadge(true, `${CREDS.user}@${CREDS.env} (refreshed)`);
+        } else { throw e; }
+      } else { throw e; }
+    }
+
+    const parsed = parseBrowseResponse(data, S.target);
+    S.rows  = parsed.rows;
+    S.totalRecords = parsed.total;
+    S.moreRecords  = parsed.more;
+    S.title = parsed.title;
+
+    // Check for real API errors (distinct from an empty/filtered table)
+    if (S.rows.length === 0) {
+      const sysErrs = data?.sysErrors;
+      const fsKey = Object.keys(data).find(k => k.startsWith('fs_DATABROWSE_'));
+      const fsErrs = fsKey ? data[fsKey]?.errors : null;
+      if (sysErrs?.length || fsErrs?.length) {
+        const errMsg = (sysErrs || fsErrs || []).map(e => e.TITLE || e.DESC || JSON.stringify(e)).join('; ');
+        console.warn('[JDE] sysErrors in response:', errMsg);
+        if (/invalid inputs/i.test(errMsg) && S.filters.length) {
+          showFilterErr();
+        } else {
+          showErr(escHtml('API error — ' + errMsg));
+        }
+        showSpinner(false);
+        return;
+      }
+      // 0 rows is valid — fall through to normal success path so grid stays active.
+    }
+
+    // Build columns
+    if (fresh || S.allCols.length === 0) {
+      S.allCols = parsed.colsMap
+        ? buildCols(parsed.colsMap, S.target)
+        : buildColsFromRows(S.rows, S.target);
+      S.colOrder = S.allCols.map(c => c.key);
+      // Restore saved layout (auto-save) for this table if available
+      restoreLayout(S.target);
+    }
+
+    S.loaded = true;
+    renderTabs();
+    showDataUI();
+    renderGrid();
+    renderPagination();
+    renderPinChips();
+    renderColPanel();
+    updateSbarRight();
+    setMsg(`${S.rows.length} rows loaded — ${S.target}${S.moreRecords ? ' (more available — increase row count)' : ''}`);
+
+  } catch(e) {
+    console.error('[JDE] browse error:', e);
+    if (isTokenError(e.message)) {
+      token = null;
+      setConnBadge(false, 'Session Expired');
+      showErr('Session expired. Click <b>Connection</b> to reconnect.');
+    } else if (/invalid inputs|503/i.test(e.message) && S.filters.length) {
+      showFilterErr();
+    } else {
+      showErr(escHtml(e.message));
+    }
+    setMsg('Error — see grid for details.');
+  }
+  showSpinner(false);
+}
+
+function showFilterErr() {
+  const filterList = (S.filters || []).map(f =>
+    `<code style="background:var(--bg3);padding:1px 5px;border-radius:3px;color:var(--orange)">${escHtml(f.alias)} ${escHtml(f.op)} "${escHtml(f.value)}"</code>`
+  ).join('<br>');
+  showErr(
+    `JDE rejected the filter condition(s):<br><br>${filterList}<br><br>` +
+    `<b>Open DevTools → Network to see the exact payload sent.</b><br><br>` +
+    `<b>Things to check:</b><br>` +
+    `• Field alias is correct (check exact spelling in column header)<br>` +
+    `• Operator matches the field type — numeric/date fields:<br>` +
+    `&nbsp;&nbsp;use <code>= equals</code>, <code>&gt; greater</code>, <code>&lt; less</code><br>` +
+    `&nbsp;&nbsp;<i>LIKE / contains only works on text/string fields</i><br>` +
+    `• Date values usually need <code>YYYYMMDD</code> format<br>` +
+    `• This AIS version may not support filtering on this table`
+  );
+  S.filters = [];
+  renderFilterChips();
+}
+
+// ════════════════════════════════════════
+// GRID RENDERING
+// ════════════════════════════════════════
+function getVisibleCols() {
+  const term   = S.colSearch.toLowerCase();
+  const pinned = S.pinnedCols.filter(k => !S.hiddenCols.has(k));
+  const rest   = S.colOrder.filter(k => !S.pinnedCols.includes(k) && !S.hiddenCols.has(k));
+  const ordered = [...pinned, ...rest];
+  if (!term) return ordered;
+  const matches = key => {
+    const col = S.allCols.find(c => c.key === key);
+    return (col?.alias || '').toLowerCase().includes(term)
+      || (col?.desc || '').toLowerCase().includes(term);
+  };
+  return S.colFilterMode ? ordered.filter(matches) : ordered;
+}
+
+function isColMatch(key) {
+  if (!S.colSearch) return false;
+  const term = S.colSearch.toLowerCase();
+  const col  = S.allCols.find(c => c.key === key);
+  return (col?.alias || '').toLowerCase().includes(term)
+    || (col?.desc || '').toLowerCase().includes(term);
+}
+
+function sortRows(rows) {
+  if (!S.sortCol) return rows;
+  return [...rows].sort((a, b) => {
+    let av = a[S.sortCol] ?? '', bv = b[S.sortCol] ?? '';
+    const na = parseFloat(av), nb = parseFloat(bv);
+    if (!isNaN(na) && !isNaN(nb)) { av = na; bv = nb; }
+    else { av = String(av).toLowerCase(); bv = String(bv).toLowerCase(); }
+    if (av < bv) return S.sortDir === 'asc' ? -1 : 1;
+    if (av > bv) return S.sortDir === 'asc' ?  1 : -1;
+    return 0;
+  });
+}
+
+function hasActiveConditions() {
+  return (S.dataConditions || []).some(c => c.val.trim() !== '');
+}
+
+function resolveCondKeys(cond) {
+  const colId = (cond.col || '').trim().toUpperCase();
+  if (!colId) return getVisibleCols();
+  const keys = S.allCols
+    .filter(c => c.alias.toUpperCase() === colId || c.key.toUpperCase() === colId)
+    .map(c => c.key);
+  return keys.length ? keys : getVisibleCols();
+}
+
+function matchCondOp(v, term, op) {
+  switch (op) {
+    case 'equals':      return v === term;
+    case 'starts':      return v.startsWith(term);
+    case 'ends':        return v.endsWith(term);
+    case 'notcontains': return !v.includes(term);
+    // Numeric / range operators (fall back to string compare if not numeric)
+    case 'gt': { const a = parseFloat(v), b = parseFloat(term); return isNaN(a)||isNaN(b) ? v > term : a > b; }
+    case 'lt': { const a = parseFloat(v), b = parseFloat(term); return isNaN(a)||isNaN(b) ? v < term : a < b; }
+    case 'ge': { const a = parseFloat(v), b = parseFloat(term); return isNaN(a)||isNaN(b) ? v >= term : a >= b; }
+    case 'le': { const a = parseFloat(v), b = parseFloat(term); return isNaN(a)||isNaN(b) ? v <= term : a <= b; }
+    default:            return v.includes(term); // contains
+  }
+}
+
+function getFilteredRows() {
+  const sorted = sortRows(S.rows);
+  const active = (S.dataConditions || []).filter(c => c.val.trim() !== '');
+  if (!active.length) return sorted;
+  return sorted.filter(row =>
+    active.every(cond => {
+      const term = cond.val.toLowerCase();
+      const keys = resolveCondKeys(cond);
+      return keys.some(key => matchCondOp(String(row[key] ?? '').toLowerCase(), term, cond.op));
+    })
+  );
+}
+
+function renderCellValue(val, term, isFilterMode) {
+  if (!val || !term) return escHtml(val);
+  const doHighlight = document.getElementById('rs-highlight')?.checked && !isFilterMode;
+  if (!doHighlight) return escHtml(val);
+  const lower = val.toLowerCase();
+  const t = term.toLowerCase();
+  let result = '', pos = 0;
+  let idx;
+  while ((idx = lower.indexOf(t, pos)) !== -1) {
+    result += escHtml(val.slice(pos, idx));
+    result += `<mark class="hl">${escHtml(val.slice(idx, idx + t.length))}</mark>`;
+    pos = idx + t.length;
+  }
+  result += escHtml(val.slice(pos));
+  return result;
+}
+
+function renderGrid() {
+  const cols    = getVisibleCols();
+  const rows    = getFilteredRows();
+  const hasTerm = !!S.colSearch && !S.colFilterMode;
+  const filterMode = document.getElementById('rs-filter-mode')?.checked;
+  const offset  = S.page * S.pageSize;
+
+  // Update row-filter match counter
+  const rsMatch = document.getElementById('rs-match');
+  if (rsMatch) {
+    rsMatch.textContent = hasActiveConditions()
+      ? `${rows.length} of ${S.rows.length} rows match`
+      : '';
+  }
+
+  // ── Header ──
+  const rowNumW = S.colWidths['__rownum__'] ? `min-width:${S.colWidths['__rownum__']}px;width:${S.colWidths['__rownum__']}px` : 'min-width:52px';
+  let hHtml = `<tr><th style="position:sticky;left:0;z-index:11;background:var(--bg2);border-right:2px solid var(--border);${rowNumW}">
+    <div class="th-inner"><span style="color:var(--txt2);font-size:10px">#</span></div>
+    <div class="col-resize-handle" onmousedown="startColResize(event,'__rownum__')"></div></th>`;
+
+  cols.forEach(key => {
+    const col = S.allCols.find(c => c.key === key) || { key, alias: key, desc: '' };
+    const isPinned = S.pinnedCols.includes(key);
+    const isMatch  = isColMatch(key);
+    let cls = '';
+    if (isPinned) cls += ' col-pinned';
+    if (isMatch)  cls += ' col-match';
+    if (hasTerm && !isMatch) cls += ' col-dimmed';
+    const sortIcon = S.sortCol === key ? (S.sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+    const wStyle = S.colWidths[key] ? ` style="min-width:${S.colWidths[key]}px;width:${S.colWidths[key]}px"` : '';
+    hHtml += `
+      <th class="${cls.trim()}" data-key="${escHtml(key)}" draggable="true"${wStyle}
+        ondragstart="handleDragStart(event,this)"
+        ondragover="handleDragOver(event,this)"
+        ondrop="handleDrop(event,this)"
+        ondragend="handleDragEnd()">
+        <div class="th-inner">
+          <button class="pin-icon" title="${isPinned ? 'Unpin' : 'Pin to front'}"
+            onclick="togglePin('${escHtml(key)}',event)">${isPinned ? '📌' : '📍'}</button>
+          <span class="th-alias" onclick="clickSort('${escHtml(key)}')">${escHtml(col.alias)}</span>
+          ${col.desc ? `<span class="th-desc" title="${escHtml(col.desc)}">${escHtml(col.desc)}</span>` : ''}
+          <span class="th-sort">${sortIcon}</span>
+        </div>
+        <div class="col-resize-handle" onmousedown="startColResize(event,'${escHtml(key)}')"></div>
+      </th>`;
+  });
+  hHtml += '</tr>';
+  document.getElementById('thead').innerHTML = hHtml;
+
+  // Attach compact-mode header tooltips (show alias+desc on hover when th-desc is hidden)
+  if (document.body.classList.contains('grid-compact')) attachCompactThTooltips();
+
+  // ── Body ──
+  const hasFilter    = hasActiveConditions();
+  const doHighlight  = hasFilter && document.getElementById('rs-highlight')?.checked && !filterMode;
+  const doFilterMode = hasFilter && filterMode;
+  const activeConds  = (S.dataConditions || []).filter(c => c.val.trim() !== '');
+
+  // In highlight mode show ALL rows (dim non-matching); in filter mode show only matching rows
+  const allRowsForDisplay = doHighlight ? sortRows(S.rows) : rows;
+
+  let bHtml = '';
+
+  // Friendly empty state
+  if (allRowsForDisplay.length === 0) {
+    const totalCols = cols.length + 1;
+    const emptyIcon  = S.filters.length || hasFilter ? '🔍' : '📭';
+    const emptyTitle = S.filters.length
+      ? 'No records match the active server filters'
+      : hasFilter
+        ? 'No rows match your row filter conditions'
+        : `${escHtml(S.target)} appears to be empty`;
+    const emptyHint  = S.filters.length
+      ? 'Try relaxing or removing one of the filter conditions above.'
+      : hasFilter
+        ? 'Try changing or removing a row filter condition.'
+        : 'The table exists and responded successfully, but contains no data.';
+    document.getElementById('tbody').innerHTML =
+      `<tr><td colspan="${totalCols}" style="text-align:center;padding:48px 20px;border:none">
+        <div style="display:inline-flex;flex-direction:column;align-items:center;gap:10px;color:var(--txt1)">
+          <span style="font-size:40px;opacity:.4">${emptyIcon}</span>
+          <span style="font-size:14px;font-weight:600;color:var(--txt0)">${emptyTitle}</span>
+          <span style="font-size:12px;color:var(--txt2);max-width:360px;line-height:1.6">${emptyHint}</span>
+        </div>
+      </td></tr>`;
+    return;
+  }
+
+  allRowsForDisplay.forEach((row, i) => {
+    // Does this row satisfy ALL active conditions?
+    const rowMatches = !hasFilter ? true : activeConds.every(cond => {
+      const term = cond.val.toLowerCase();
+      return resolveCondKeys(cond).some(key =>
+        matchCondOp(String(row[key] ?? '').toLowerCase(), term, cond.op)
+      );
+    });
+
+    const rowCls = doHighlight && !rowMatches ? ' class="row-dim"' : '';
+    const rnW = S.colWidths?.['__rownum__'] ? ` style="min-width:${S.colWidths['__rownum__']}px;width:${S.colWidths['__rownum__']}px"` : '';
+    bHtml += `<tr${rowCls}><td${rnW}>${offset + i + 1}</td>`;
+    cols.forEach(key => {
+      const raw = row[key];
+      const val = (raw === null || raw === undefined) ? '' : String(raw).trim();
+      const isNull = val === '';
+      const needsTip = val.length > 35;
+      // Find the first condition that highlights this specific cell
+      let hlTerm = null;
+      if (doHighlight && rowMatches) {
+        for (const cond of activeConds) {
+          if (cond.op === 'notcontains') continue; // don't highlight "not" conditions
+          const condKeys = resolveCondKeys(cond);
+          if (!condKeys.includes(key)) continue;
+          if (val.toLowerCase().includes(cond.val.toLowerCase())) { hlTerm = cond.val; break; }
+        }
+      }
+      const cellContent = isNull ? '<span style="opacity:.35;font-style:italic">null</span>'
+        : hlTerm ? renderCellValue(val, hlTerm, false)
+        : escHtml(val);
+      bHtml += `<td class="${isNull ? 'null-cell' : ''}"${needsTip ? ` data-tip="${escHtml(val)}"` : ''}>${cellContent}</td>`;
+    });
+    bHtml += '</tr>';
+  });
+  document.getElementById('tbody').innerHTML = bHtml;
+
+  // Attach tooltips
+  document.querySelectorAll('td[data-tip]').forEach(td => {
+    td.addEventListener('mouseenter', e => showTip(e, col_label(td.closest('tr'), cols, td) + td.getAttribute('data-tip')));
+    td.addEventListener('mouseleave', hideTip);
+  });
+
+  // Update match info
+  const matched = cols.filter(k => isColMatch(k)).length;
+  document.getElementById('fs-match').textContent = S.colSearch
+    ? `${matched} match${matched !== 1 ? 'es' : ''}${S.colFilterMode ? '' : ' (all shown)'}` : '';
+}
+
+function col_label(tr, cols, td) {
+  // Get column alias for tooltip header
+  const idx = Array.from(tr.children).indexOf(td) - 1;
+  const key = cols[idx];
+  const col = key ? S.allCols.find(c => c.key === key) : null;
+  return col ? col.alias + (col.desc ? ' – ' + col.desc : '') + '\n' : '';
+}
+
+// ════════════════════════════════════════
+// PAGINATION (no-op — navigation removed; all records load in one request)
+// ════════════════════════════════════════
+function renderPagination() { /* pagination UI removed */ }
+function prevPage() {}
+function nextPage() {}
+
+// ════════════════════════════════════════
+// COLUMN SORT
+// ════════════════════════════════════════
+function clickSort(key) {
+  S.sortCol = S.sortCol === key && S.sortDir === 'asc' ? key : key;
+  S.sortDir = S.sortCol === key && S.sortDir === 'asc' ? 'desc' : 'asc';
+  S.sortCol = key;
+  renderGrid();
+}
+
+// ════════════════════════════════════════
+// COLUMN PIN
+// ════════════════════════════════════════
+function togglePin(key, e) {
+  if (e) e.stopPropagation();
+  const i = S.pinnedCols.indexOf(key);
+  if (i >= 0) S.pinnedCols.splice(i, 1);
+  else S.pinnedCols.unshift(key);
+  saveLayout();
+  renderGrid(); renderPinChips(); renderColPanel(); updateSbarRight();
+  document.getElementById('reset-pins-btn').style.display = S.pinnedCols.length ? '' : 'none';
+}
+function resetPins() {
+  S.pinnedCols = [];
+  saveLayout();
+  renderGrid(); renderPinChips(); renderColPanel();
+  document.getElementById('reset-pins-btn').style.display = 'none';
+}
+function renderPinChips() {
+  const c = document.getElementById('pin-chips');
+  c.innerHTML = '';
+  S.pinnedCols.forEach(key => {
+    const col = S.allCols.find(c => c.key === key) || { alias: key };
+    const ch = document.createElement('div');
+    ch.className = 'pchip';
+    ch.innerHTML = `📌 ${escHtml(col.alias)} <button onclick="togglePin('${escHtml(key)}')" title="Unpin">✕</button>`;
+    c.appendChild(ch);
+  });
+  document.getElementById('reset-pins-btn').style.display = S.pinnedCols.length ? '' : 'none';
+}
+
+// ════════════════════════════════════════
+// COLUMN SEARCH
+// ════════════════════════════════════════
+function applyColSearch() {
+  S.colSearch    = document.getElementById('fs-inp').value;
+  S.colFilterMode = document.getElementById('fs-filter-mode').checked;
+  renderGrid(); updateSbarRight();
+}
+function clearFieldSearch() {
+  document.getElementById('fs-inp').value = '';
+  S.colSearch = '';
+  renderGrid(); updateSbarRight();
+}
+
+// ════════════════════════════════════════
+// DATA (ROW) MULTI-CONDITION FILTER
+// ════════════════════════════════════════
+function addDataCondition() {
+  if (!S) return;
+  if (!S.dataConditions) S.dataConditions = [];
+  S.dataConditions.push({ col: '', op: 'contains', val: '' });
+  renderDataConditions();
+  // Auto-focus the new value input
+  setTimeout(() => {
+    const vals = document.querySelectorAll('.rs-val');
+    if (vals.length) vals[vals.length - 1].focus();
+  }, 30);
+}
+
+function removeDataCondition(idx) {
+  if (!S?.dataConditions) return;
+  S.dataConditions.splice(idx, 1);
+  renderDataConditions();
+  applyDataConditions();
+}
+
+function renderDataConditions() {
+  const container = document.getElementById('rs-conditions');
+  if (!container) return;
+  const conds = S?.dataConditions || [];
+  const clrBtn = document.getElementById('rs-clear-btn');
+  if (clrBtn) clrBtn.style.display = conds.length ? '' : 'none';
+  // Dim the Search button when no specific-field condition is present
+  updateSearchBtn();
+  container.innerHTML = '';
+  if (!conds.length) return;
+
+  conds.forEach((cond, i) => {
+    const row = document.createElement('div');
+    row.className = 'rs-cond';
+
+    // AND / spacer label
+    const lbl = document.createElement('span');
+    lbl.className = 'rs-and-lbl';
+    lbl.textContent = i > 0 ? 'AND' : '';
+    row.appendChild(lbl);
+
+    // Column input
+    const colInp = document.createElement('input');
+    colInp.className = 'inp rs-col-inp';
+    colInp.type = 'text';
+    colInp.placeholder = 'all columns';
+    colInp.value = cond.col || '';
+    colInp.autocomplete = 'off';
+    colInp.title = 'Column alias (leave blank for all)';
+    colInp.oninput  = () => { cond.col = colInp.value; showColAC(colInp, i); applyDataConditions(); updateSearchBtn(); };
+    colInp.onfocus  = () => showColAC(colInp, i);
+    colInp.onblur   = () => setTimeout(hideColAC, 160);
+    colInp.onkeydown = (e) => handleColACKey(e, i);
+    row.appendChild(colInp);
+
+    // Operator select
+    const opSel = document.createElement('select');
+    opSel.className = 'inp rs-op';
+    [['contains','contains'], ['equals','= equals'], ['starts','starts with'],
+     ['ends','ends with'], ['notcontains','≠ not contains'],
+     ['gt','> greater than'], ['lt','< less than'],
+     ['ge','≥ greater or equal'], ['le','≤ less or equal']].forEach(([v, l]) => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = l;
+      if (cond.op === v) o.selected = true;
+      opSel.appendChild(o);
+    });
+    opSel.onchange = () => { cond.op = opSel.value; applyDataConditions(); };
+    row.appendChild(opSel);
+
+    // Value input
+    const valInp = document.createElement('input');
+    valInp.className = 'inp rs-val';
+    valInp.type = 'text';
+    valInp.placeholder = 'value…';
+    valInp.value = cond.val || '';
+    valInp.oninput  = () => { cond.val = valInp.value; applyDataConditions(); updateSearchBtn(); };
+    valInp.onkeydown = (e) => {
+      if (e.key === 'Enter' && cond.col.trim()) { e.preventDefault(); searchTable(); }
+      if (e.key === 'Escape') { cond.val = ''; valInp.value = ''; applyDataConditions(); }
+    };
+    row.appendChild(valInp);
+
+    // Remove button
+    const rmBtn = document.createElement('button');
+    rmBtn.className = 'btn btn-ghost btn-sm';
+    rmBtn.title = 'Remove condition';
+    rmBtn.style.color = 'var(--red)';
+    rmBtn.textContent = '✕';
+    rmBtn.onclick = () => removeDataCondition(i);
+    row.appendChild(rmBtn);
+
+    container.appendChild(row);
+  });
+}
+
+function applyDataConditions() {
+  if (!S?.loaded) return;
+  renderGrid();
+  updateSbarRight();
+}
+
+function updateSearchBtn() {
+  const conds = S?.dataConditions || [];
+  const hasFieldCond = conds.some(c => c.col.trim() && c.val.trim() !== '');
+  const btn = document.getElementById('rs-search-btn');
+  if (!btn) return;
+  // Button is always visible once loaded — highlight when a specific field condition exists
+  btn.style.opacity = hasFieldCond ? '1' : '0.55';
+  btn.title = hasFieldCond
+    ? 'Search the ENTIRE table on the server using these conditions'
+    : 'Type a field alias (e.g. EDOC) in the condition column to enable server search';
+}
+
+// ── TABLE SEARCH ──
+// Search uses POST /v2/dataservice with query.condition using controlId "TABLE.ALIAS" (dot notation)
+// as shown in the official Oracle AIS REST API docs examples (e.g., {"controlId":"F0101.AN8",...}).
+const _SEARCH_OP_MAP = {
+  equals:      'EQUAL',
+  notcontains: 'NOT_EQUAL',
+  contains:    'STR_CONTAIN',
+  starts:      'STR_START_WITH',
+  ends:        'STR_END_WITH',
+  gt:          'GREATER',
+  lt:          'LESS',
+  ge:          'GREATER_EQUAL',
+  le:          'LESS_EQUAL',
+};
+
+const SEARCH_MAX_ROWS = 500;  // server-side result cap
+
+async function searchTable() {
+  if (!token) { alert('Please connect to JDE first.'); return; }
+  if (!S?.loaded) return;
+
+  const all        = S.dataConditions || [];
+  const candidates = all.filter(c => c.col.trim() && c.val.trim() !== '');
+  if (!candidates.length) {
+    const anyVal = all.some(c => c.val.trim() !== '');
+    alert(anyVal
+      ? 'Each condition needs a field name.\n\nTip: click the field box and pick from the autocomplete list.'
+      : 'Add at least one condition (field + value) before searching.');
+    return;
+  }
+
+  // ── Attempt 1: server-side filtering ──
+  // controlId format: "TABLE.ALIAS" (dot notation) per official Oracle docs example:
+  // {"controlId":"F0101.AN8","operator":"GREATER","value":[{"content":"7000","specialValueId":"LITERAL"}]}
+  const conditions = [];
+  const skipped    = [];
+  for (const c of candidates) {
+    const op = _SEARCH_OP_MAP[c.op];
+    if (!op) { skipped.push(`${c.col} (${c.op})`); continue; }
+    conditions.push({
+      controlId: `${S.target}.${c.col.trim().toUpperCase()}`,
+      operator:  op,
+      value: [{ content: c.val.trim(), specialValueId: 'LITERAL' }],
+    });
+  }
+
+  if (conditions.length) {
+    showSpinner(true);
+    setMsg(`🔍 Searching ${S.target}…`);
+    try {
+      const body = {
+        token,
+        targetName:      S.target,
+        targetType:      S.targetType,
+        dataServiceType: 'BROWSE',
+        deviceName:      DEVICE_NAME,
+        maxPageSize:     String(SEARCH_MAX_ROWS),
+        startAt:         0,
+        query: { autoFind: true, matchType: 'MATCH_ALL', condition: conditions },
+      };
+
+      let data;
+      try {
+        data = await aisPost('/jderest/v2/dataservice', body);
+      } catch(e) {
+        if (isTokenError(e.message) && CREDS.pass) {
+          setMsg('Session expired — reconnecting…');
+          if (await reauth()) { body.token = token; data = await aisPost('/jderest/v2/dataservice', body); setConnBadge(true, `${CREDS.user}@${CREDS.env} (refreshed)`); }
+          else { throw e; }
+        } else { throw e; }
+      }
+
+      // Surface any in-body errors
+      const fsKey  = data && Object.keys(data).find(k => k.startsWith('fs_DATABROWSE_'));
+      const sysErr = data?.sysErrors;
+      const fsErr  = fsKey ? data[fsKey]?.errors : null;
+      if (sysErr?.length || fsErr?.length) {
+        const msg = (sysErr || fsErr || []).map(e => e.TITLE || e.DESC || JSON.stringify(e)).join('; ');
+        throw new Error('AIS: ' + msg);
+      }
+
+      const parsed   = parseBrowseResponse(data, S.target);
+      const capped   = parsed.rows.length >= SEARCH_MAX_ROWS;
+      const condDesc = candidates.map(c => `${c.col} ${c.op} "${c.val}"`).join(' AND ');
+      const countStr = `${parsed.rows.length}${capped ? '+' : ''} match${parsed.rows.length !== 1 ? 'es' : ''}`;
+
+      if (parsed.colsMap) { S.allCols = buildCols(parsed.colsMap, S.target); S.colOrder = S.allCols.map(c => c.key); restoreLayout(S.target); }
+      else if (S.allCols.length === 0 && parsed.rows.length > 0) { S.allCols = buildColsFromRows(parsed.rows, S.target); S.colOrder = S.allCols.map(c => c.key); }
+
+      S.rows = parsed.rows; S.totalRecords = parsed.rows.length; S.moreRecords = capped;
+      S.page = 0; S.loaded = true;
+      S.title = `🔍 ${countStr} — ${condDesc}`;
+      renderTabs(); showDataUI(); renderGrid(); renderPagination(); renderPinChips(); renderColPanel(); updateSbarRight();
+      setMsg(`Search complete — ${countStr}${skipped.length ? ` (${skipped.length} skipped)` : ''}`);
+      showSpinner(false);
+      return;
+
+    } catch(e) {
+      showSpinner(false);
+      if (isTokenError(e.message)) {
+        token = null; setConnBadge(false, 'Session Expired');
+        showErr('Session expired. Click <b>Connection</b> to reconnect.');
+        return;
+      }
+      showErr(`Search failed: ${escHtml(e.message)}<br><br>` +
+        `<small>Things to check:<br>` +
+        `• Field alias is correct (e.g. EDOC, EDUS, AN8)<br>` +
+        `• Value format matches the field type<br>` +
+        `• AIS server supports query conditions on this table</small>`);
+      return;
+    }
+  }
+}
+
+function clearDataConditions() {
+  if (!S) return;
+  S.dataConditions = [];
+  renderDataConditions();
+  applyDataConditions();
+}
+
+// ════════════════════════════════════════
+// COLUMN AUTOCOMPLETE (custom, fixed-positioned)
+// ════════════════════════════════════════
+let _acTarget = null, _acCondIdx = -1, _acActiveItem = -1;
+
+function showColAC(inp, condIdx) {
+  _acTarget = inp; _acCondIdx = condIdx; _acActiveItem = -1;
+  const term    = inp.value.toLowerCase();
+  const cols    = S?.allCols || [];
+  const filtered = term
+    ? cols.filter(c => c.alias.toLowerCase().includes(term) || c.desc.toLowerCase().includes(term))
+    : cols;
+  const ac = document.getElementById('col-ac');
+  if (!filtered.length) { hideColAC(); return; }
+
+  ac.innerHTML = '';
+  filtered.slice(0, 40).forEach(col => {
+    const item = document.createElement('div');
+    item.className = 'col-ac-item';
+    item.innerHTML =
+      `<span class="col-ac-alias">${escHtml(col.alias)}</span>` +
+      `<span class="col-ac-desc">${escHtml(col.desc)}</span>`;
+    item.onmousedown = (e) => { e.preventDefault(); selectColAC(col.alias, condIdx); };
+    ac.appendChild(item);
+  });
+
+  // Position below the input using fixed viewport coords
+  const rect = inp.getBoundingClientRect();
+  ac.style.left   = rect.left + 'px';
+  ac.style.top    = (rect.bottom + 3) + 'px';
+  ac.style.width  = Math.max(260, rect.width + 140) + 'px';
+  ac.style.display = 'block';
+}
+
+function hideColAC() {
+  const ac = document.getElementById('col-ac');
+  if (ac) ac.style.display = 'none';
+  _acTarget = null; _acCondIdx = -1; _acActiveItem = -1;
+}
+
+function selectColAC(alias, condIdx) {
+  if (!S?.dataConditions?.[condIdx]) return;
+  S.dataConditions[condIdx].col = alias;
+  hideColAC();
+  // Sync the input element value
+  const colInps = document.querySelectorAll('.rs-col-inp');
+  if (colInps[condIdx]) colInps[condIdx].value = alias;
+  applyDataConditions();
+}
+
+function handleColACKey(e, condIdx) {
+  const ac = document.getElementById('col-ac');
+  if (!ac || ac.style.display === 'none') return;
+  const items = ac.querySelectorAll('.col-ac-item');
+  if (!items.length) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    _acActiveItem = (_acActiveItem + 1) % items.length;
+    items.forEach((el, j) => el.classList.toggle('ac-active', j === _acActiveItem));
+    items[_acActiveItem].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    _acActiveItem = (_acActiveItem - 1 + items.length) % items.length;
+    items.forEach((el, j) => el.classList.toggle('ac-active', j === _acActiveItem));
+    items[_acActiveItem].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter' && _acActiveItem >= 0) {
+    e.preventDefault();
+    const alias = items[_acActiveItem].querySelector('.col-ac-alias')?.textContent;
+    if (alias) selectColAC(alias, condIdx);
+  } else if (e.key === 'Escape') {
+    hideColAC();
+  } else if (e.key === 'Tab') {
+    hideColAC();
+  }
+}
+
+// ════════════════════════════════════════
+// COLUMN PANEL
+// ════════════════════════════════════════
+function toggleColPanel() { document.getElementById('colpanel').classList.toggle('open'); }
+function renderColPanel() {
+  const term = document.getElementById('colpanel-search').value.toLowerCase();
+  const list = document.getElementById('colpanel-list');
+  list.innerHTML = '';
+  const cols = S.allCols.filter(c =>
+    !term || c.alias.toLowerCase().includes(term) || c.desc.toLowerCase().includes(term)
+  );
+  document.getElementById('colpanel-count').textContent =
+    getVisibleCols().length + ' / ' + S.allCols.length;
+  cols.forEach(col => {
+    const isHidden = S.hiddenCols.has(col.key);
+    const isPinned = S.pinnedCols.includes(col.key);
+    const item = document.createElement('div');
+    item.className = 'col-item';
+    item.innerHTML = `
+      <input type="checkbox" ${isHidden ? '' : 'checked'} onchange="toggleColVis('${col.key}', this.checked)">
+      <div style="flex:1; min-width:0">
+        <div class="col-alias ${isPinned ? 'pinned-col' : ''}">${isPinned ? '📌 ' : ''}${escHtml(col.alias)}</div>
+        ${col.desc ? `<div class="col-dsc" title="${escHtml(col.desc)}">${escHtml(col.desc)}</div>` : ''}
+      </div>
+      <button class="col-pin-btn ${isPinned ? 'active' : ''}"
+        onclick="togglePin('${col.key}', event)" title="${isPinned ? 'Unpin' : 'Pin to front'}">
+        ${isPinned ? '📌' : '📍'}
+      </button>`;
+    list.appendChild(item);
+  });
+}
+function toggleColVis(key, show) {
+  if (show) S.hiddenCols.delete(key); else S.hiddenCols.add(key);
+  saveLayout();
+  renderGrid(); updateSbarRight();
+}
+function showAllCols() { S.hiddenCols.clear(); saveLayout(); renderGrid(); renderColPanel(); updateSbarRight(); }
+function hideAllCols() {
+  S.allCols.forEach(c => S.hiddenCols.add(c.key));
+  saveLayout(); renderGrid(); renderColPanel(); updateSbarRight();
+}
+
+// ════════════════════════════════════════
+// FILTERS
+// ════════════════════════════════════════
+let filterPopupOpen = false;
+function toggleFilterPopup() {
+  filterPopupOpen = !filterPopupOpen;
+  const p = document.getElementById('filter-popup');
+  p.classList.toggle('open', filterPopupOpen);
+  if (filterPopupOpen) {
+    const rect   = document.getElementById('filter-btn').getBoundingClientRect();
+    const popW   = 340;
+    let left = rect.left - 160;
+    if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
+    if (left < 8) left = 8;
+    p.style.top  = (rect.bottom + 6) + 'px';
+    p.style.left = left + 'px';
+    document.getElementById('fp-field').focus();
+  }
+}
+function closeFilterPopup() {
+  filterPopupOpen = false;
+  document.getElementById('filter-popup').classList.remove('open');
+}
+function addFilter() {
+  const alias = document.getElementById('fp-field').value.trim().toUpperCase();
+  const op    = document.getElementById('fp-op').value;
+  const val   = document.getElementById('fp-val').value.trim();
+  if (!alias || !val) { alert('Field alias and value are required.'); return; }
+  S.filters.push({ alias, op, value: val });
+  document.getElementById('fp-field').value = '';
+  document.getElementById('fp-val').value = '';
+  renderFilterChips(); closeFilterPopup();
+  browse(true);
+}
+function removeFilter(i) {
+  S.filters.splice(i, 1); renderFilterChips();
+  if (S.target) browse(true);
+}
+function clearAllFilters() {
+  S.filters = []; renderFilterChips();
+  document.getElementById('fbar').classList.remove('visible');
+  if (S.target) browse(true);
+}
+function renderFilterChips() {
+  const c = document.getElementById('filter-chips');
+  c.innerHTML = '';
+  const ops = { EQUAL:'=', NOT_EQUAL:'≠', GREATER:'>', LESS:'<',
+    GREATER_EQUAL:'≥', LESS_EQUAL:'≤', STR_START_WITH:'starts', LIKE:'~' };
+  S.filters.forEach((f, i) => {
+    const ch = document.createElement('div');
+    ch.className = 'filter-chip';
+    ch.innerHTML = `${escHtml(f.alias)} ${ops[f.op]||f.op} "${escHtml(f.value)}"
+      <button onclick="removeFilter(${i})" title="Remove">✕</button>`;
+    c.appendChild(ch);
+  });
+  document.getElementById('fbar').classList.toggle('visible', S.filters.length > 0);
+}
+
+// ════════════════════════════════════════
+// EXPORT CSV
+// ════════════════════════════════════════
+function exportCSV() {
+  const cols = getVisibleCols();
+  const rows = sortRows(S.rows);
+  // Header: use short alias
+  const header = cols.map(key => {
+    const col = S.allCols.find(c => c.key === key);
+    return col?.alias || key;
+  });
+  const lines = [header.join(',')];
+  rows.forEach(row => {
+    lines.push(cols.map(key => {
+      const v = String(row[key] ?? '').replace(/"/g, '""');
+      return v.includes(',') || v.includes('\n') || v.includes('"') ? `"${v}"` : v;
+    }).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `${S.target}_p${S.page + 1}.csv`; a.click();
+  URL.revokeObjectURL(url);
+  const msg = document.getElementById('export-msg');
+  msg.style.display = 'block';
+  setTimeout(() => msg.style.display = 'none', 2500);
+}
+
+// ════════════════════════════════════════
+// TOOLTIP
+// ════════════════════════════════════════
+function showTip(e, text) {
+  const t = document.getElementById('tip');
+  t.textContent = text; t.style.display = 'block'; moveTip(e);
+}
+function moveTip(e) {
+  const t = document.getElementById('tip');
+  let x = e.clientX + 14, y = e.clientY - 10;
+  if (x + 340 > window.innerWidth) x = e.clientX - 344;
+  if (y + 80 > window.innerHeight) y = e.clientY - 70;
+  t.style.left = x + 'px'; t.style.top = y + 'px';
+}
+function hideTip() { document.getElementById('tip').style.display = 'none'; }
+document.addEventListener('mousemove', e => {
+  if (document.getElementById('tip').style.display === 'block') moveTip(e);
+});
+
+// ════════════════════════════════════════
+// COLUMN RESIZE
+// ════════════════════════════════════════
+let _resizeKey = null, _resizeStartX = 0, _resizeStartW = 0;
+
+function startColResize(e, key) {
+  e.stopPropagation();
+  e.preventDefault();
+  _resizeKey = key;
+  _resizeStartX = e.clientX;
+  const th = document.querySelector(`th[data-key="${key}"]`);
+  _resizeStartW = th ? th.offsetWidth : 120;
+  e.target.classList.add('resizing');
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+  document.addEventListener('mousemove', doColResize);
+  document.addEventListener('mouseup', endColResize);
+}
+
+function doColResize(e) {
+  if (!_resizeKey) return;
+  const newW = Math.max(30, _resizeStartW + (e.clientX - _resizeStartX));
+  if (!S.colWidths) S.colWidths = {};
+  S.colWidths[_resizeKey] = newW;
+
+  if (_resizeKey === '__rownum__') {
+    // Row-number column: apply to the sticky first th and all td:first-child
+    const th = document.querySelector('thead tr th:first-child');
+    if (th) { th.style.minWidth = newW + 'px'; th.style.width = newW + 'px'; }
+    document.querySelectorAll('#tbody tr td:first-child').forEach(td => {
+      td.style.minWidth = newW + 'px'; td.style.width = newW + 'px';
+    });
+  } else {
+    // Regular data column
+    const th = document.querySelector(`th[data-key="${_resizeKey}"]`);
+    if (th) { th.style.minWidth = newW + 'px'; th.style.width = newW + 'px'; }
+    const colIdx = getVisibleCols().indexOf(_resizeKey);
+    if (colIdx >= 0) {
+      document.querySelectorAll(`#tbody tr td:nth-child(${colIdx + 2})`).forEach(td => {
+        td.style.minWidth = newW + 'px';
+        td.style.maxWidth = newW + 'px';
+      });
+    }
+  }
+}
+
+function endColResize() {
+  if (_resizeKey) {
+    saveLayout();
+    _resizeKey = null;
+  }
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+  document.querySelectorAll('.col-resize-handle.resizing').forEach(el => el.classList.remove('resizing'));
+  document.removeEventListener('mousemove', doColResize);
+  document.removeEventListener('mouseup', endColResize);
+}
+
+// ════════════════════════════════════════
+// DRAG & DROP COLUMN REORDER
+// ════════════════════════════════════════
+let _dragKey = null;
+
+function handleDragStart(e, th) {
+  _dragKey = th.dataset.key;
+  th.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', _dragKey); // required for Firefox
+}
+
+function handleDragOver(e, th) {
+  if (!_dragKey || th.dataset.key === _dragKey) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  // Show left/right drop indicator
+  const rect = th.getBoundingClientRect();
+  document.querySelectorAll('th.drop-left, th.drop-right').forEach(el =>
+    el.classList.remove('drop-left', 'drop-right')
+  );
+  th.classList.add(e.clientX < rect.left + rect.width / 2 ? 'drop-left' : 'drop-right');
+}
+
+function handleDrop(e, th) {
+  e.preventDefault();
+  const targetKey = th.dataset.key;
+  if (!_dragKey || _dragKey === targetKey) { handleDragEnd(); return; }
+
+  // Current effective (visible) column order: [...pinned-visible, ...non-pinned-visible]
+  const eff = getVisibleCols();
+  const fromIdx = eff.indexOf(_dragKey);
+  const toIdx   = eff.indexOf(targetKey);
+  if (fromIdx < 0 || toIdx < 0) { handleDragEnd(); return; }
+
+  // Compute insert position (before or after target)
+  const rect = th.getBoundingClientRect();
+  let insertAt = e.clientX < rect.left + rect.width / 2 ? toIdx : toIdx + 1;
+  // Adjust for the removal of the dragged element
+  if (fromIdx < insertAt) insertAt--;
+
+  // Reorder the effective array
+  eff.splice(fromIdx, 1);
+  eff.splice(insertAt, 0, _dragKey);
+
+  // Maintain the same count of pinned-visible columns: first nPinned positions stay pinned
+  const nPinned = S.pinnedCols.filter(k => !S.hiddenCols.has(k)).length;
+  const newPinned = eff.slice(0, nPinned);
+  const newNonPin = eff.slice(nPinned);
+
+  // Preserve hidden cols' relative order for colOrder
+  const hiddenKeys = S.allCols.map(c => c.key).filter(k => S.hiddenCols.has(k));
+
+  S.pinnedCols = newPinned;
+  S.colOrder   = [...newPinned, ...newNonPin, ...hiddenKeys];
+
+  handleDragEnd();
+  saveLayout();
+  renderGrid(); renderPinChips(); renderColPanel();
+}
+
+function handleDragEnd() {
+  _dragKey = null;
+  document.querySelectorAll('th.dragging, th.drop-left, th.drop-right').forEach(el =>
+    el.classList.remove('dragging', 'drop-left', 'drop-right')
+  );
+}
+
+// ════════════════════════════════════════
+// LAYOUT PERSISTENCE (auto-save per table)
+// ════════════════════════════════════════
+function saveLayout() {
+  if (!S || !S.target) return;
+  try {
+    localStorage.setItem('jdbp_layout_' + S.target, JSON.stringify({
+      colOrder:   S.colOrder,
+      pinnedCols: S.pinnedCols,
+      hiddenCols: [...S.hiddenCols],
+      colWidths:  S.colWidths || {},
+    }));
+  } catch(_) {}
+}
+
+function restoreLayout(target) {
+  try {
+    const raw = localStorage.getItem('jdbp_layout_' + target);
+    if (!raw) return false;
+    const layout = JSON.parse(raw);
+    const validKeys = new Set(S.allCols.map(c => c.key));
+    // Restore colOrder, adding any new columns at end
+    const co = (layout.colOrder || []).filter(k => validKeys.has(k));
+    S.allCols.forEach(c => { if (!co.includes(c.key)) co.push(c.key); });
+    S.colOrder   = co;
+    S.pinnedCols = (layout.pinnedCols || []).filter(k => validKeys.has(k));
+    S.hiddenCols = new Set((layout.hiddenCols || []).filter(k => validKeys.has(k)));
+    S.colWidths  = layout.colWidths || {};
+    return true;
+  } catch(_) { return false; }
+}
+
+// ════════════════════════════════════════
+// GRID FORMATS
+// ════════════════════════════════════════
+function getFormats() {
+  try { return JSON.parse(localStorage.getItem('jdbp_formats') || '{}'); } catch(_) { return {}; }
+}
+function setFormats(f) {
+  try { localStorage.setItem('jdbp_formats', JSON.stringify(f)); } catch(_) {}
+}
+
+function saveCurrentFormat() {
+  const name = document.getElementById('fmt-name-inp').value.trim();
+  if (!name) { alert('Enter a format name.'); return; }
+  if (!S || !S.loaded) { alert('Load a table first.'); return; }
+  const formats = getFormats();
+  formats[name] = {
+    target:     S.target,
+    colOrder:   S.colOrder,
+    pinnedCols: S.pinnedCols,
+    hiddenCols: [...S.hiddenCols],
+    colWidths:  S.colWidths || {},
+    savedAt:    new Date().toISOString(),
+  };
+  setFormats(formats);
+  document.getElementById('fmt-name-inp').value = '';
+  renderFormatsList();
+  setMsg(`Format "${name}" saved.`);
+}
+
+function loadFormat(name) {
+  const formats = getFormats();
+  const f = formats[name];
+  if (!f || !S || !S.loaded) return;
+  const validKeys = new Set(S.allCols.map(c => c.key));
+  const co = (f.colOrder || []).filter(k => validKeys.has(k));
+  S.allCols.forEach(c => { if (!co.includes(c.key)) co.push(c.key); });
+  S.colOrder   = co;
+  S.pinnedCols = (f.pinnedCols || []).filter(k => validKeys.has(k));
+  S.hiddenCols = new Set((f.hiddenCols || []).filter(k => validKeys.has(k)));
+  S.colWidths  = f.colWidths || {};
+  saveLayout();
+  renderGrid(); renderPinChips(); renderColPanel(); updateSbarRight();
+  setMsg(`Format "${name}" applied.`);
+}
+
+function deleteFormat(name) {
+  if (!confirm(`Delete format "${name}"?`)) return;
+  const formats = getFormats();
+  delete formats[name];
+  setFormats(formats);
+  renderFormatsList();
+}
+
+let formatsPopupOpen = false;
+function toggleFormatsPopup() {
+  formatsPopupOpen = !formatsPopupOpen;
+  const p = document.getElementById('formats-popup');
+  p.classList.toggle('open', formatsPopupOpen);
+  if (formatsPopupOpen) {
+    const rect = document.getElementById('formats-btn').getBoundingClientRect();
+    // Position below the button, right-aligned to it, viewport-relative (fixed)
+    const popW = 300;
+    let left = rect.right - popW;
+    if (left < 8) left = 8;
+    p.style.top  = (rect.bottom + 6) + 'px';
+    p.style.left = left + 'px';
+    p.style.right = 'auto';
+    renderFormatsList();
+    document.getElementById('fmt-name-inp').focus();
+  }
+}
+function closeFormatsPopup() {
+  formatsPopupOpen = false;
+  document.getElementById('formats-popup').classList.remove('open');
+}
+
+function renderFormatsList() {
+  const formats  = getFormats();
+  const list     = document.getElementById('fmt-list');
+  const showAll  = document.getElementById('fmt-show-all')?.checked;
+
+  // Collect targets of all open tabs
+  const openTargets = new Set(TABS.filter(t => t.loaded && t.target).map(t => t.target));
+
+  let entries = Object.entries(formats);
+  if (!entries.length) {
+    list.innerHTML = '<div class="fmt-empty">No saved formats yet.<br>Save your current column layout above.</div>';
+    return;
+  }
+
+  // Filter to formats belonging to open tables (unless "Show all" is checked)
+  const visible = showAll
+    ? entries
+    : entries.filter(([, f]) => openTargets.has(f.target));
+
+  if (!visible.length) {
+    const others = entries.length;
+    list.innerHTML = `<div class="fmt-empty">No formats for open tables.<br>
+      <span style="color:var(--txt2)">${others} format${others !== 1 ? 's' : ''} saved for other tables.</span><br>
+      <span style="color:var(--purple);cursor:pointer;text-decoration:underline"
+        onclick="document.getElementById('fmt-show-all').checked=true;renderFormatsList()">Show all</span></div>`;
+    return;
+  }
+
+  list.innerHTML = '';
+  visible.sort((a, b) => {
+    // Sort by target first, then name
+    const ta = a[1].target || '', tb = b[1].target || '';
+    return ta !== tb ? ta.localeCompare(tb) : a[0].localeCompare(b[0]);
+  }).forEach(([name, f]) => {
+    const item = document.createElement('div');
+    item.className = 'fmt-item';
+    const date = f.savedAt ? new Date(f.savedAt).toLocaleDateString() : '';
+    const isCurrent = f.target === S?.target;
+    item.innerHTML = `
+      <div style="flex:1; min-width:0">
+        <div class="fmt-name" title="${escHtml(name)}">${escHtml(name)}</div>
+        <div style="font-size:10px; color:${isCurrent ? 'var(--teal)' : 'var(--txt2)'}; font-family:monospace">
+          ${escHtml(f.target || '')}${date ? ' · ' + date : ''}
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="loadFormat('${escHtml(name)}')" title="Apply format">▶</button>
+      <button class="btn btn-ghost btn-sm" onclick="deleteFormat('${escHtml(name)}')" title="Delete" style="color:var(--red)">✕</button>
+    `;
+    list.appendChild(item);
+  });
+}
+
+// ════════════════════════════════════════
+// KEYBOARD
+// ════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    if (document.activeElement === document.getElementById('q-target')) browse(true);
+    if (document.activeElement === document.getElementById('i-pass'))   connect();
+    if (document.activeElement === document.getElementById('fp-val'))   addFilter();
+  }
+  if (e.key === 'Escape') { hideTip(); clearFieldSearch(); hideColAC(); closeFilterPopup(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'f' && S?.loaded) {
+    e.preventDefault(); document.getElementById('fs-inp').focus();
+  }
+  // Ctrl+G: add a row filter condition (or focus first value input)
+  if ((e.ctrlKey || e.metaKey) && e.key === 'g' && S?.loaded) {
+    e.preventDefault();
+    const firstVal = document.querySelector('.rs-val');
+    if (firstVal) firstVal.focus();
+    else addDataCondition();
+  }
+  // Ctrl+T: new tab
+  if ((e.ctrlKey || e.metaKey) && e.key === 't') {
+    e.preventDefault(); newTab();
+  }
+  // Ctrl+W: close active tab
+  if ((e.ctrlKey || e.metaKey) && e.key === 'w' && TABS.length > 1) {
+    e.preventDefault(); closeTab(ACTIVE);
+  }
+  // Ctrl+1-9: switch tab
+  if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '9') {
+    const idx = parseInt(e.key) - 1;
+    if (idx < TABS.length) { e.preventDefault(); switchTab(idx); }
+  }
+});
+
+// Close popups on outside click
+document.addEventListener('click', e => {
+  if (filterPopupOpen
+    && !document.getElementById('filter-popup').contains(e.target)
+    && e.target !== document.getElementById('filter-btn')) {
+    closeFilterPopup();
+  }
+  if (formatsPopupOpen
+    && !document.getElementById('formats-popup').contains(e.target)
+    && e.target !== document.getElementById('formats-btn')) {
+    closeFormatsPopup();
+  }
+});
+
+// ════════════════════════════════════════
+// GRID ZOOM
+// ════════════════════════════════════════
+const ZOOM_COMPACT_THRESHOLD = 80; // % below which th-desc is hidden
+
+function applyZoom(pct) {
+  pct = Math.max(60, Math.min(105, pct));
+  const r = pct / 100;
+  const root = document.documentElement;
+  // Scale padding and font-sizes proportionally from their 100% base values
+  root.style.setProperty('--tbl-pad-v', (+(4 * r).toFixed(1)) + 'px');
+  root.style.setProperty('--tbl-pad-h', (+(9 * r).toFixed(1)) + 'px');
+  root.style.setProperty('--tbl-fs',    (+(12 * r).toFixed(1)) + 'px');
+  root.style.setProperty('--th-fs',     (+(11 * r).toFixed(1)) + 'px');
+
+  const compact = pct <= ZOOM_COMPACT_THRESHOLD;
+  document.body.classList.toggle('grid-compact', compact);
+
+  // Update slider + label
+  const sl  = document.getElementById('zoom-slider');
+  const lbl = document.getElementById('zoom-pct');
+  if (sl)  sl.value = pct;
+  if (lbl) lbl.textContent = pct + '%';
+
+  // Attach header hover tooltips when compact (re-attach because renderGrid may not have run yet)
+  if (compact) attachCompactThTooltips();
+
+  try { localStorage.setItem('jdbp_zoom', pct); } catch(_) {}
+}
+
+function loadZoom() {
+  try {
+    const raw = localStorage.getItem('jdbp_zoom');
+    applyZoom(raw !== null ? parseInt(raw, 10) : 100);
+  } catch(_) {}
+}
+
+function attachCompactThTooltips() {
+  // Uses property-based handlers (no duplicate-listener risk; new th elements after renderGrid)
+  document.querySelectorAll('#thead th[data-key]').forEach(th => {
+    const key = th.dataset.key;
+    const col = S?.allCols?.find(c => c.key === key);
+    if (!col) return;
+    const tipText = col.desc ? col.alias + ' — ' + col.desc : col.alias;
+    th.onmouseenter = e => showTip(e, tipText);
+    th.onmouseleave = hideTip;
+  });
+}
+
+// ════════════════════════════════════════
+// THEME
+// ════════════════════════════════════════
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light');
+  document.getElementById('theme-icon').textContent  = isLight ? '☀️' : '🌙';
+  document.getElementById('theme-label').textContent = isLight ? 'Light' : 'Dark';
+  try { localStorage.setItem('jdbp_theme', isLight ? 'light' : 'dark'); } catch(_) {}
+}
+function loadTheme() {
+  try {
+    if (localStorage.getItem('jdbp_theme') === 'light') {
+      document.body.classList.add('light');
+      document.getElementById('theme-icon').textContent  = '☀️';
+      document.getElementById('theme-label').textContent = 'Light';
+    }
+  } catch(_) {}
+}
+
+// ════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════
+newTab();      // start with one empty tab
+loadPrefs();
+loadTheme();
+loadZoom();
+</script>
+</body>
+</html>
