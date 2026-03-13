@@ -156,6 +156,14 @@
     .fg { display: flex; flex-direction: column; gap: 3px; }
     .fg label { font-size: 10px; color: var(--txt2); text-transform: uppercase; letter-spacing: .6px; font-weight: 600; }
 
+    /* ── Environment profile buttons ── */
+    #prof-row { width: 100%; display: flex; align-items: center; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 2px; flex-wrap: wrap; }
+    #prof-row .prof-lbl { font-size: 10px; color: var(--txt2); text-transform: uppercase; letter-spacing: .6px; font-weight: 600; white-space: nowrap; margin-right: 2px; }
+    .prof-btn { height: 34px; padding: 0 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg2); color: var(--txt1); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all .15s; min-width: 64px; gap: 1px; }
+    .prof-btn:hover { border-color: var(--border2); color: var(--txt0); background: var(--bg3); }
+    .prof-btn .prof-btn-name { font-size: 12px; font-weight: 700; line-height: 1; }
+    .prof-btn .prof-btn-env  { font-size: 9px; opacity: .65; line-height: 1; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
     /* ── Tab bar ── */
     #tabbar {
       background: var(--bg1); border-bottom: 1px solid var(--border);
@@ -475,6 +483,24 @@
 
 <!-- ═══ SETTINGS ═══ -->
 <div id="settings">
+  <!-- Quick-connect profile row -->
+  <div id="prof-row">
+    <span class="prof-lbl">Quick Connect:</span>
+    <button class="prof-btn" id="prof-btn-dv" onclick="selectProfile('dv')">
+      <span class="prof-btn-name">DV</span>
+      <span class="prof-btn-env" id="prof-env-dv">not set</span>
+    </button>
+    <button class="prof-btn" id="prof-btn-py" onclick="selectProfile('py')">
+      <span class="prof-btn-name">PY</span>
+      <span class="prof-btn-env" id="prof-env-py">not set</span>
+    </button>
+    <button class="prof-btn" id="prof-btn-pd" onclick="selectProfile('pd')">
+      <span class="prof-btn-name">PD</span>
+      <span class="prof-btn-env" id="prof-env-pd">not set</span>
+    </button>
+    <span style="font-size:10px;color:var(--txt2);margin-left:4px">← select an environment, then enter your password</span>
+  </div>
+  <!-- Fields -->
   <div class="fg">
     <label>AIS Server URL</label>
     <input class="inp" id="i-url" type="url" placeholder="http://192.168.10.24:6083" style="width:260px">
@@ -497,11 +523,12 @@
   </div>
   <div style="display:flex; gap:8px; align-items:flex-end">
     <button class="btn btn-primary" onclick="connect()">Connect</button>
+    <button class="btn btn-outline btn-sm" id="save-prof-btn" onclick="saveCurrentProfile()" title="Save URL, username, environment and role for the selected profile" style="display:none">💾 Save Profile</button>
     <button class="btn btn-ghost" onclick="toggleSettings()">Cancel</button>
   </div>
   <div style="flex:1"></div>
   <div style="font-size:10px; color:var(--txt2); align-self:flex-end; max-width:200px; line-height:1.5">
-    ⚠ AIS server must allow CORS. Credentials are never stored.
+    ⚠ AIS server must allow CORS.<br>Passwords are never saved.
   </div>
 </div>
 
@@ -918,6 +945,97 @@ function loadPrefs() {
     if (v('jdbp_role')) document.getElementById('i-role').value = v('jdbp_role');
     if (v('jdbp_url') || v('jdbp_user')) document.getElementById('settings').classList.add('open');
   } catch(_) {}
+  renderProfileButtons();
+}
+
+// ════════════════════════════════════════
+// ENVIRONMENT PROFILES (DV / PY / PD)
+// ════════════════════════════════════════
+let _activeProfile = null; // 'dv' | 'py' | 'pd' | null
+
+function getProfiles() {
+  try {
+    const raw = localStorage.getItem('jdbp_profiles');
+    return raw ? JSON.parse(raw) : {};
+  } catch(_) { return {}; }
+}
+
+function setProfiles(p) {
+  try { localStorage.setItem('jdbp_profiles', JSON.stringify(p)); } catch(_) {}
+}
+
+function selectProfile(key) {
+  const profs = getProfiles();
+  const p = profs[key];
+
+  // Highlight selected button
+  ['dv','py','pd'].forEach(k => {
+    const btn = document.getElementById('prof-btn-' + k);
+    if (btn) {
+      btn.style.borderColor = k === key ? 'var(--blue)' : '';
+      btn.style.color       = k === key ? 'var(--blue)' : '';
+      btn.style.background  = k === key ? 'rgba(88,166,255,.1)' : '';
+    }
+  });
+
+  _activeProfile = key;
+
+  // Fill form with saved values (if any); always clear password
+  const el = id => document.getElementById(id);
+  if (p) {
+    el('i-url').value  = p.url  || '';
+    el('i-user').value = p.user || '';
+    el('i-env').value  = p.env  || '';
+    el('i-role').value = p.role || '*ALL';
+  }
+  el('i-pass').value = '';
+
+  // Show the Save Profile button
+  const saveBtn = document.getElementById('save-prof-btn');
+  if (saveBtn) saveBtn.style.display = '';
+
+  // Focus password field
+  el('i-pass').focus();
+}
+
+function saveCurrentProfile() {
+  if (!_activeProfile) return;
+  const profs = getProfiles();
+  profs[_activeProfile] = {
+    url:  document.getElementById('i-url').value.trim(),
+    user: document.getElementById('i-user').value.trim(),
+    env:  document.getElementById('i-env').value.trim(),
+    role: document.getElementById('i-role').value.trim() || '*ALL',
+  };
+  setProfiles(profs);
+  renderProfileButtons();
+
+  // Brief visual feedback on button
+  const btn = document.getElementById('prof-btn-' + _activeProfile);
+  if (btn) {
+    const orig = btn.style.borderColor;
+    btn.style.borderColor = 'var(--green)';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => {
+      btn.style.borderColor = 'var(--blue)';
+      btn.style.color = 'var(--blue)';
+    }, 900);
+  }
+  setMsg('Profile ' + _activeProfile.toUpperCase() + ' saved.');
+}
+
+function renderProfileButtons() {
+  const profs = getProfiles();
+  ['dv','py','pd'].forEach(key => {
+    const p = profs[key];
+    const envEl = document.getElementById('prof-env-' + key);
+    if (!envEl) return;
+    if (p && p.env) {
+      envEl.textContent = p.env;
+    } else {
+      envEl.textContent = 'not set';
+    }
+  });
 }
 
 // ════════════════════════════════════════
@@ -1026,6 +1144,13 @@ async function connect() {
       throw new Error('No token in response. Check console for raw response.');
     }
     CREDS.user = user; CREDS.pass = pass; CREDS.env = env; CREDS.role = role;
+    // Auto-save to active profile on successful connect
+    if (_activeProfile) {
+      const profs = getProfiles();
+      profs[_activeProfile] = { url, user, env, role };
+      setProfiles(profs);
+      renderProfileButtons();
+    }
     setConnBadge(true, `${user}@${env}`);
     setMsg('Connected. Enter a table name and click Browse.');
     document.getElementById('settings').classList.remove('open');
