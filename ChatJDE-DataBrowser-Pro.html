@@ -1535,7 +1535,7 @@ function clearFieldSearch() {
 function addDataCondition() {
   if (!S) return;
   if (!S.dataConditions) S.dataConditions = [];
-  S.dataConditions.push({ col: '', op: 'contains', val: '' });
+  S.dataConditions.push({ col: '', op: 'equals', val: '' });
   renderDataConditions();
   // Auto-focus the new value input
   setTimeout(() => {
@@ -1589,7 +1589,7 @@ function renderDataConditions() {
     // Operator select
     const opSel = document.createElement('select');
     opSel.className = 'inp rs-op';
-    [['contains','contains'], ['equals','= equals'], ['starts','starts with'],
+    [['equals','= equals'], ['starts','starts with'],
      ['ends','ends with'], ['notcontains','≠ not contains'],
      ['gt','> greater than'], ['lt','< less than'],
      ['ge','≥ greater or equal'], ['le','≤ less or equal']].forEach(([v, l]) => {
@@ -1651,7 +1651,6 @@ function updateSearchBtn() {
 const _SEARCH_OP_MAP = {
   equals:      'EQUAL',
   notcontains: 'NOT_EQUAL',
-  contains:    'STR_CONTAIN',
   starts:      'STR_START_WITH',
   ends:        'STR_END_WITH',
   gt:          'GREATER',
